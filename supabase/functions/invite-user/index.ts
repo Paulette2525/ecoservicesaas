@@ -92,7 +92,7 @@ serve(async (req) => {
 
     if (roleError) throw roleError;
 
-    return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
+    return new Response(JSON.stringify({ success: true, user_id: userId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
