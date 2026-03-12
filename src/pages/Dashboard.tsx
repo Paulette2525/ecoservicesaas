@@ -28,7 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
   commande_probable: "bg-success text-success-foreground",
 };
 
-type PeriodPreset = "month" | "quarter" | "year" | "custom";
+type PeriodPreset = "week" | "month" | "custom";
 
 interface CommercialStats {
   name: string;
