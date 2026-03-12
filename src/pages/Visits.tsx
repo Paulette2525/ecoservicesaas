@@ -238,11 +238,9 @@ export default function Visits() {
                   )}
                   <TableCell>
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      {!v.transcription && (
-                        <Button variant="ghost" size="icon" onClick={() => openRecorderForVisit(v)} title="Ajouter des notes">
-                          <MessageSquare className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button variant="ghost" size="icon" onClick={() => openRecorderForVisit(v)} title={v.transcription ? "Ré-enregistrer" : "Ajouter des notes"}>
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
                     </div>
                   </TableCell>
