@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Search, Pencil } from "lucide-react";
@@ -24,22 +24,36 @@ interface Client {
 export default function Clients() {
   const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
   const [form, setForm] = useState({ company_name: "", city: "", sector: "", phone: "", email: "", notes: "" });
 
-  const fetchClients = async () => {
-    const { data } = await supabase.from("clients").select("*").order("company_name");
-    if (data) setClients(data);
+  const fetchData = async () => {
+    const [clientsRes, profilesRes] = await Promise.all([
+      supabase.from("clients").select("*").order("company_name"),
+      supabase.from("profiles").select("user_id, full_name"),
+    ]);
+    if (clientsRes.data) setClients(clientsRes.data);
+    if (profilesRes.data) {
+      const map: Record<string, string> = {};
+      profilesRes.data.forEach((p) => { map[p.user_id] = p.full_name; });
+      setProfiles(map);
+    }
   };
 
-  useEffect(() => { fetchClients(); }, []);
+  useEffect(() => { fetchData(); }, []);
+
+  const getCommercialName = (id: string | null) => {
+    if (!id) return "—";
+    return profiles[id] || "—";
+  };
 
   const handleSave = async () => {
     if (!form.company_name.trim()) { toast.error("Le nom de l'entreprise est requis"); return; }
 
-    const payload = { ...form, commercial_id: user?.id ?? null };
+    const payload = { ...form, commercial_id: editing ? editing.commercial_id : (user?.id ?? null) };
 
     if (editing) {
       const { error } = await supabase.from("clients").update(payload).eq("id", editing.id);
@@ -53,7 +67,7 @@ export default function Clients() {
     setOpen(false);
     setEditing(null);
     setForm({ company_name: "", city: "", sector: "", phone: "", email: "", notes: "" });
-    fetchClients();
+    fetchData();
   };
 
   const openEdit = (c: Client) => {
@@ -96,6 +110,10 @@ export default function Clients() {
                 <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
               </div>
               <div><Label>Notes</Label><Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+              <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                <span className="font-medium">Commercial attribué : </span>
+                {editing ? getCommercialName(editing.commercial_id) : "Vous (automatique)"}
+              </div>
               <Button onClick={handleSave} className="w-full">{editing ? "Mettre à jour" : "Créer"}</Button>
             </div>
           </DialogContent>
@@ -117,12 +135,13 @@ export default function Clients() {
                 <TableHead>Secteur</TableHead>
                 <TableHead>Téléphone</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Commercial</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Aucun client trouvé</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Aucun client trouvé</TableCell></TableRow>
               ) : filtered.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="font-medium">{c.company_name}</TableCell>
@@ -130,6 +149,7 @@ export default function Clients() {
                   <TableCell>{c.sector}</TableCell>
                   <TableCell>{c.phone}</TableCell>
                   <TableCell>{c.email}</TableCell>
+                  <TableCell>{getCommercialName(c.commercial_id)}</TableCell>
                   <TableCell>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Pencil className="h-4 w-4" /></Button>
                   </TableCell>
