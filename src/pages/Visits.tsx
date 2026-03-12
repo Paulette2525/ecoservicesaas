@@ -192,6 +192,10 @@ export default function Visits() {
                   <p className="text-xs text-muted-foreground mt-1">Les notes générées par l'enregistrement ne peuvent pas être modifiées manuellement.</p>
                 )}
               </div>
+              <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                <span className="font-medium">Commercial attribué : </span>
+                {editing ? (profiles.get(editing.commercial_id) || "—") : "Vous (automatique)"}
+              </div>
               <Button onClick={handleSave} className="w-full">{editing ? "Mettre à jour" : "Créer"}</Button>
             </div>
           </DialogContent>
