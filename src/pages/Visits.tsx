@@ -223,6 +223,7 @@ export default function Visits() {
               ) : filtered.map((v) => (
                 <TableRow key={v.id} className={isAdmin && v.transcription ? "cursor-pointer" : ""} onClick={() => isAdmin && v.transcription && setDetailVisit(v)}>
                   <TableCell className="font-medium">{v.clients?.company_name}</TableCell>
+                  <TableCell>{profiles.get(v.commercial_id) || "—"}</TableCell>
                   <TableCell>{new Date(v.visit_date).toLocaleDateString("fr-FR")}</TableCell>
                   <TableCell>{v.location}</TableCell>
                   <TableCell>
