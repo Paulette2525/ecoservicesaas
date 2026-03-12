@@ -14,16 +14,332 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      client_demands: {
+        Row: {
+          client_id: string
+          commercial_id: string
+          created_at: string
+          demand_date: string
+          id: string
+          product_id: string
+          quantity: number
+          status: Database["public"]["Enums"]["demand_status"]
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          commercial_id: string
+          created_at?: string
+          demand_date?: string
+          id?: string
+          product_id: string
+          quantity?: number
+          status?: Database["public"]["Enums"]["demand_status"]
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          commercial_id?: string
+          created_at?: string
+          demand_date?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          status?: Database["public"]["Enums"]["demand_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_demands_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_demands_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          city: string | null
+          commercial_id: string | null
+          company_name: string
+          created_at: string
+          email: string | null
+          id: string
+          notes: string | null
+          phone: string | null
+          sector: string | null
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          commercial_id?: string | null
+          company_name: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          sector?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          commercial_id?: string | null
+          company_name?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          sector?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      product_equivalences: {
+        Row: {
+          created_at: string
+          equivalent_id: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          equivalent_id: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          equivalent_id?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_equivalences_equivalent_id_fkey"
+            columns: ["equivalent_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_equivalences_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          reference: string
+          stock_available: number
+          supply_delay_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          reference: string
+          stock_available?: number
+          supply_delay_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          reference?: string
+          stock_available?: number
+          supply_delay_days?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      visit_products: {
+        Row: {
+          created_at: string
+          estimated_quantity: number | null
+          id: string
+          product_id: string
+          urgency: Database["public"]["Enums"]["urgency_level"] | null
+          visit_id: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_quantity?: number | null
+          id?: string
+          product_id: string
+          urgency?: Database["public"]["Enums"]["urgency_level"] | null
+          visit_id: string
+        }
+        Update: {
+          created_at?: string
+          estimated_quantity?: number | null
+          id?: string
+          product_id?: string
+          urgency?: Database["public"]["Enums"]["urgency_level"] | null
+          visit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_products_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visits: {
+        Row: {
+          audio_url: string | null
+          client_id: string
+          commercial_id: string
+          created_at: string
+          id: string
+          location: string | null
+          report: string | null
+          status: Database["public"]["Enums"]["visit_status"]
+          summary: string | null
+          transcription: string | null
+          updated_at: string
+          visit_date: string
+        }
+        Insert: {
+          audio_url?: string | null
+          client_id: string
+          commercial_id: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          report?: string | null
+          status?: Database["public"]["Enums"]["visit_status"]
+          summary?: string | null
+          transcription?: string | null
+          updated_at?: string
+          visit_date?: string
+        }
+        Update: {
+          audio_url?: string | null
+          client_id?: string
+          commercial_id?: string
+          created_at?: string
+          id?: string
+          location?: string | null
+          report?: string | null
+          status?: Database["public"]["Enums"]["visit_status"]
+          summary?: string | null
+          transcription?: string | null
+          updated_at?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "manager" | "commercial"
+      demand_status: "disponible" | "en_rupture" | "en_commande"
+      urgency_level: "faible" | "moyenne" | "haute"
+      visit_status: "opportunite" | "prise_de_contact" | "commande_probable"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +466,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "manager", "commercial"],
+      demand_status: ["disponible", "en_rupture", "en_commande"],
+      urgency_level: ["faible", "moyenne", "haute"],
+      visit_status: ["opportunite", "prise_de_contact", "commande_probable"],
+    },
   },
 } as const
