@@ -154,14 +154,14 @@ export default function Dashboard() {
         {/* Period filter bar */}
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
-          {(["month", "quarter", "year"] as PeriodPreset[]).map((p) => (
+          {(["week", "month"] as PeriodPreset[]).map((p) => (
             <Button
               key={p}
               variant={periodPreset === p ? "default" : "outline"}
               size="sm"
               onClick={() => applyPreset(p)}
             >
-              {p === "month" ? "Ce mois" : p === "quarter" ? "Ce trimestre" : "Cette année"}
+              {p === "week" ? "Cette semaine" : "Ce mois"}
             </Button>
           ))}
 

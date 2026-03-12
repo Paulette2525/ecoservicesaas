@@ -50,6 +50,7 @@ function ProtectedRoutes() {
         <Route path="/products" element={<Products />} />
         <Route path="/equivalences" element={<Equivalences />} />
         <Route path="/demands" element={<Demands />} />
+        <Route path="/commercial-activity" element={(role === "admin" || role === "manager") ? <CommercialActivity /> : <Navigate to="/" replace />} />
         <Route path="/users" element={role === "admin" ? <Users /> : <Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
