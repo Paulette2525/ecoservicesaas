@@ -192,6 +192,10 @@ export default function Visits() {
                   <p className="text-xs text-muted-foreground mt-1">Les notes générées par l'enregistrement ne peuvent pas être modifiées manuellement.</p>
                 )}
               </div>
+              <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                <span className="font-medium">Commercial attribué : </span>
+                {editing ? (profiles.get(editing.commercial_id) || "—") : "Vous (automatique)"}
+              </div>
               <Button onClick={handleSave} className="w-full">{editing ? "Mettre à jour" : "Créer"}</Button>
             </div>
           </DialogContent>
@@ -209,6 +213,7 @@ export default function Visits() {
             <TableHeader>
               <TableRow>
                 <TableHead>Client</TableHead>
+                <TableHead>Commercial</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Lieu</TableHead>
                 <TableHead>Statut</TableHead>
@@ -218,10 +223,11 @@ export default function Visits() {
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground py-8">Aucune visite trouvée</TableCell></TableRow>
+                <TableRow><TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">Aucune visite trouvée</TableCell></TableRow>
               ) : filtered.map((v) => (
                 <TableRow key={v.id} className={isAdmin && v.transcription ? "cursor-pointer" : ""} onClick={() => isAdmin && v.transcription && setDetailVisit(v)}>
                   <TableCell className="font-medium">{v.clients?.company_name}</TableCell>
+                  <TableCell>{profiles.get(v.commercial_id) || "—"}</TableCell>
                   <TableCell>{new Date(v.visit_date).toLocaleDateString("fr-FR")}</TableCell>
                   <TableCell>{v.location}</TableCell>
                   <TableCell>
