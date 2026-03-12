@@ -13,6 +13,7 @@ import Products from "./pages/Products";
 import Equivalences from "./pages/Equivalences";
 import Demands from "./pages/Demands";
 import Users from "./pages/Users";
+import CommercialActivity from "./pages/CommercialActivity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
