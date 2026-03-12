@@ -2,3 +2,9 @@ project_id = "joalckslaijxmuwayqna"
 
 [functions.invite-user]
 verify_jwt = false
+
+[functions.elevenlabs-transcribe]
+verify_jwt = false
+
+[functions.visit-summary]
+verify_jwt = false
