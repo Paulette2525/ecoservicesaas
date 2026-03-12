@@ -9,9 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Pencil } from "lucide-react";
+import { Plus, Search, Pencil, Mic } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import VisitRecorder from "@/components/VisitRecorder";
 
 interface Visit {
   id: string;
@@ -22,6 +23,7 @@ interface Visit {
   status: string;
   report: string | null;
   summary: string | null;
+  transcription: string | null;
   clients?: { company_name: string } | null;
 }
 
@@ -43,7 +45,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function Visits() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
   const [search, setSearch] = useState("");
@@ -54,12 +56,23 @@ export default function Visits() {
     location: "", status: "prise_de_contact" as string, report: "",
   });
 
+  // Recorder state
+  const [recorderOpen, setRecorderOpen] = useState(false);
+  const [recorderVisitId, setRecorderVisitId] = useState("");
+  const [recorderClientName, setRecorderClientName] = useState("");
+  const [recorderVisitDate, setRecorderVisitDate] = useState("");
+
+  // Detail view for admin/manager
+  const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
+
+  const isAdmin = role === "admin" || role === "manager";
+
   const fetchVisits = async () => {
     const { data } = await supabase
       .from("visits")
       .select("*, clients(company_name)")
       .order("visit_date", { ascending: false });
-    if (data) setVisits(data);
+    if (data) setVisits(data as Visit[]);
   };
 
   const fetchClients = async () => {
@@ -85,14 +98,21 @@ export default function Visits() {
       const { error } = await supabase.from("visits").update(payload).eq("id", editing.id);
       if (error) { toast.error(error.message); return; }
       toast.success("Visite mise à jour");
+      setOpen(false);
+      setEditing(null);
+      fetchVisits();
     } else {
-      const { error } = await supabase.from("visits").insert(payload);
+      const { data, error } = await supabase.from("visits").insert(payload).select("id").single();
       if (error) { toast.error(error.message); return; }
       toast.success("Visite créée");
+      setOpen(false);
+      // Open recorder after creation
+      const clientName = clientOptions.find((c) => c.id === form.client_id)?.company_name || "";
+      setRecorderVisitId(data.id);
+      setRecorderClientName(clientName);
+      setRecorderVisitDate(form.visit_date);
+      setRecorderOpen(true);
     }
-    setOpen(false);
-    setEditing(null);
-    fetchVisits();
   };
 
   const openNew = () => {
@@ -111,6 +131,13 @@ export default function Visits() {
       report: v.report ?? "",
     });
     setOpen(true);
+  };
+
+  const openRecorderForVisit = (v: Visit) => {
+    setRecorderVisitId(v.id);
+    setRecorderClientName(v.clients?.company_name || "");
+    setRecorderVisitDate(v.visit_date.split("T")[0]);
+    setRecorderOpen(true);
   };
 
   const filtered = visits.filter((v) =>
@@ -154,7 +181,7 @@ export default function Visits() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>Compte rendu</Label><Textarea value={form.report} onChange={(e) => setForm({ ...form, report: e.target.value })} rows={4} /></div>
+              <div><Label>Notes</Label><Textarea value={form.report} onChange={(e) => setForm({ ...form, report: e.target.value })} rows={3} /></div>
               <Button onClick={handleSave} className="w-full">{editing ? "Mettre à jour" : "Créer"}</Button>
             </div>
           </DialogContent>
@@ -175,22 +202,39 @@ export default function Visits() {
                 <TableHead>Date</TableHead>
                 <TableHead>Lieu</TableHead>
                 <TableHead>Statut</TableHead>
+                {isAdmin && <TableHead>Audio</TableHead>}
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Aucune visite trouvée</TableCell></TableRow>
+                <TableRow><TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground py-8">Aucune visite trouvée</TableCell></TableRow>
               ) : filtered.map((v) => (
-                <TableRow key={v.id}>
+                <TableRow key={v.id} className={isAdmin && v.transcription ? "cursor-pointer" : ""} onClick={() => isAdmin && v.transcription && setDetailVisit(v)}>
                   <TableCell className="font-medium">{v.clients?.company_name}</TableCell>
                   <TableCell>{new Date(v.visit_date).toLocaleDateString("fr-FR")}</TableCell>
                   <TableCell>{v.location}</TableCell>
                   <TableCell>
                     <Badge className={statusColors[v.status]}>{statusLabels[v.status]}</Badge>
                   </TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      {v.transcription ? (
+                        <Badge variant="outline" className="text-xs">📝 Transcrit</Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
+                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                      {!v.transcription && (
+                        <Button variant="ghost" size="icon" onClick={() => openRecorderForVisit(v)} title="Enregistrer l'échange">
+                          <Mic className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -198,6 +242,58 @@ export default function Visits() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Visit Recorder */}
+      <VisitRecorder
+        open={recorderOpen}
+        onOpenChange={setRecorderOpen}
+        visitId={recorderVisitId}
+        clientName={recorderClientName}
+        visitDate={recorderVisitDate}
+        onComplete={fetchVisits}
+      />
+
+      {/* Detail dialog for admin/manager */}
+      <Dialog open={!!detailVisit} onOpenChange={(v) => !v && setDetailVisit(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Détail visite — {detailVisit?.clients?.company_name}</DialogTitle>
+          </DialogHeader>
+          {detailVisit && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div><span className="text-muted-foreground">Date :</span> {new Date(detailVisit.visit_date).toLocaleDateString("fr-FR")}</div>
+                <div><span className="text-muted-foreground">Lieu :</span> {detailVisit.location || "—"}</div>
+                <div><span className="text-muted-foreground">Statut :</span> <Badge className={statusColors[detailVisit.status]}>{statusLabels[detailVisit.status]}</Badge></div>
+              </div>
+              {detailVisit.transcription && (
+                <div>
+                  <Label className="text-base font-semibold">Transcription</Label>
+                  <div className="mt-1 whitespace-pre-wrap rounded-md border bg-muted/50 p-3 text-sm max-h-48 overflow-y-auto">
+                    {detailVisit.transcription}
+                  </div>
+                </div>
+              )}
+              {detailVisit.summary && (
+                <div>
+                  <Label className="text-base font-semibold">Résumé IA</Label>
+                  <div className="mt-1 whitespace-pre-wrap rounded-md border bg-muted/50 p-3 text-sm max-h-48 overflow-y-auto">
+                    {detailVisit.summary}
+                  </div>
+                </div>
+              )}
+              {detailVisit.report && detailVisit.report !== detailVisit.summary && (
+                <div>
+                  <Label className="text-base font-semibold">Compte rendu</Label>
+                  <div className="mt-1 whitespace-pre-wrap rounded-md border bg-muted/50 p-3 text-sm">
+                    {detailVisit.report}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
