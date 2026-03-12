@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { MapPin, Building2, Package, ClipboardList, User, CalendarIcon, Filter } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useAuth } from "@/hooks/useAuth";
-import { format, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -28,7 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
   commande_probable: "bg-success text-success-foreground",
 };
 
-type PeriodPreset = "month" | "quarter" | "year" | "custom";
+type PeriodPreset = "week" | "month" | "custom";
 
 interface CommercialStats {
   name: string;
@@ -66,9 +66,8 @@ export default function Dashboard() {
   const applyPreset = (preset: PeriodPreset) => {
     const now = new Date();
     setPeriodPreset(preset);
-    if (preset === "month") { setDateFrom(startOfMonth(now)); setDateTo(endOfMonth(now)); }
-    else if (preset === "quarter") { setDateFrom(startOfQuarter(now)); setDateTo(endOfQuarter(now)); }
-    else if (preset === "year") { setDateFrom(startOfYear(now)); setDateTo(endOfYear(now)); }
+    if (preset === "week") { setDateFrom(startOfWeek(now, { locale: fr })); setDateTo(endOfWeek(now, { locale: fr })); }
+    else if (preset === "month") { setDateFrom(startOfMonth(now)); setDateTo(endOfMonth(now)); }
   };
 
   const dateFromStr = format(dateFrom, "yyyy-MM-dd");
@@ -155,14 +154,14 @@ export default function Dashboard() {
         {/* Period filter bar */}
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
-          {(["month", "quarter", "year"] as PeriodPreset[]).map((p) => (
+          {(["week", "month"] as PeriodPreset[]).map((p) => (
             <Button
               key={p}
               variant={periodPreset === p ? "default" : "outline"}
               size="sm"
               onClick={() => applyPreset(p)}
             >
-              {p === "month" ? "Ce mois" : p === "quarter" ? "Ce trimestre" : "Cette année"}
+              {p === "week" ? "Cette semaine" : "Ce mois"}
             </Button>
           ))}
 

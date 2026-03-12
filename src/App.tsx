@@ -13,6 +13,7 @@ import Products from "./pages/Products";
 import Equivalences from "./pages/Equivalences";
 import Demands from "./pages/Demands";
 import Users from "./pages/Users";
+import CommercialActivity from "./pages/CommercialActivity";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +50,7 @@ function ProtectedRoutes() {
         <Route path="/products" element={<Products />} />
         <Route path="/equivalences" element={<Equivalences />} />
         <Route path="/demands" element={<Demands />} />
+        <Route path="/commercial-activity" element={(role === "admin" || role === "manager") ? <CommercialActivity /> : <Navigate to="/" replace />} />
         <Route path="/users" element={role === "admin" ? <Users /> : <Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

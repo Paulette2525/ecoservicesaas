@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, roles: ["admin", "manager"] },
+  { title: "Activité commerciaux", url: "/commercial-activity", icon: Users, roles: ["admin", "manager"] },
   { title: "Clients", url: "/clients", icon: Building2, roles: ["admin", "manager", "commercial"] },
   { title: "Visites", url: "/visits", icon: MapPin, roles: ["admin", "manager", "commercial"] },
   { title: "Produits", url: "/products", icon: Package, roles: ["admin", "manager", "commercial"] },
