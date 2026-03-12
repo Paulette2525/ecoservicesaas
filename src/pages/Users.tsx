@@ -57,8 +57,8 @@ export default function Users() {
       body: { email: form.email, password: form.password, full_name: form.full_name, role: form.role },
     });
 
-    if (error) {
-      toast.error("Erreur lors de l'invitation", { description: error.message });
+    if (error || data?.error) {
+      toast.error("Erreur lors de l'invitation", { description: data?.error || error?.message });
       return;
     }
 
