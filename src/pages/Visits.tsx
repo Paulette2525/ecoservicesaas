@@ -179,7 +179,19 @@ export default function Visits() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label>Notes</Label><Textarea value={form.report} onChange={(e) => setForm({ ...form, report: e.target.value })} rows={3} /></div>
+              <div>
+                <Label>Notes</Label>
+                <Textarea
+                  value={form.report}
+                  onChange={(e) => setForm({ ...form, report: e.target.value })}
+                  rows={3}
+                  disabled={!isAdmin && !!editing?.transcription}
+                  className={!isAdmin && !!editing?.transcription ? "opacity-60 cursor-not-allowed" : ""}
+                />
+                {!isAdmin && !!editing?.transcription && (
+                  <p className="text-xs text-muted-foreground mt-1">Les notes générées par l'enregistrement ne peuvent pas être modifiées manuellement.</p>
+                )}
+              </div>
               <Button onClick={handleSave} className="w-full">{editing ? "Mettre à jour" : "Créer"}</Button>
             </div>
           </DialogContent>
