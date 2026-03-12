@@ -8,8 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Pencil, Mic } from "lucide-react";
+import { Plus, Search, Pencil, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import VisitRecorder from "@/components/VisitRecorder";
@@ -48,6 +49,7 @@ export default function Visits() {
   const { user, role } = useAuth();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
+  const [profiles, setProfiles] = useState<Map<string, string>>(new Map());
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Visit | null>(null);
@@ -56,13 +58,11 @@ export default function Visits() {
     location: "", status: "prise_de_contact" as string, report: "",
   });
 
-  // Recorder state
   const [recorderOpen, setRecorderOpen] = useState(false);
   const [recorderVisitId, setRecorderVisitId] = useState("");
   const [recorderClientName, setRecorderClientName] = useState("");
   const [recorderVisitDate, setRecorderVisitDate] = useState("");
 
-  // Detail view for admin/manager
   const [detailVisit, setDetailVisit] = useState<Visit | null>(null);
 
   const isAdmin = role === "admin" || role === "manager";
@@ -80,7 +80,12 @@ export default function Visits() {
     if (data) setClientOptions(data);
   };
 
-  useEffect(() => { fetchVisits(); fetchClients(); }, []);
+  const fetchProfiles = async () => {
+    const { data } = await supabase.from("profiles").select("user_id, full_name");
+    if (data) setProfiles(new Map(data.map((p) => [p.user_id, p.full_name])));
+  };
+
+  useEffect(() => { fetchVisits(); fetchClients(); fetchProfiles(); }, []);
 
   const handleSave = async () => {
     if (!form.client_id) { toast.error("Sélectionnez un client"); return; }
@@ -106,7 +111,6 @@ export default function Visits() {
       if (error) { toast.error(error.message); return; }
       toast.success("Visite créée");
       setOpen(false);
-      // Open recorder after creation
       const clientName = clientOptions.find((c) => c.id === form.client_id)?.company_name || "";
       setRecorderVisitId(data.id);
       setRecorderClientName(clientName);
@@ -123,13 +127,7 @@ export default function Visits() {
 
   const openEdit = (v: Visit) => {
     setEditing(v);
-    setForm({
-      client_id: v.client_id,
-      visit_date: v.visit_date.split("T")[0],
-      location: v.location ?? "",
-      status: v.status,
-      report: v.report ?? "",
-    });
+    setForm({ client_id: v.client_id, visit_date: v.visit_date.split("T")[0], location: v.location ?? "", status: v.status, report: v.report ?? "" });
     setOpen(true);
   };
 
@@ -202,7 +200,7 @@ export default function Visits() {
                 <TableHead>Date</TableHead>
                 <TableHead>Lieu</TableHead>
                 <TableHead>Statut</TableHead>
-                {isAdmin && <TableHead>Audio</TableHead>}
+                {isAdmin && <TableHead>Notes</TableHead>}
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -229,8 +227,8 @@ export default function Visits() {
                   <TableCell>
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       {!v.transcription && (
-                        <Button variant="ghost" size="icon" onClick={() => openRecorderForVisit(v)} title="Enregistrer l'échange">
-                          <Mic className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" onClick={() => openRecorderForVisit(v)} title="Ajouter des notes">
+                          <MessageSquare className="h-4 w-4" />
                         </Button>
                       )}
                       <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
@@ -243,7 +241,6 @@ export default function Visits() {
         </CardContent>
       </Card>
 
-      {/* Visit Recorder */}
       <VisitRecorder
         open={recorderOpen}
         onOpenChange={setRecorderOpen}
@@ -253,43 +250,73 @@ export default function Visits() {
         onComplete={fetchVisits}
       />
 
-      {/* Detail dialog for admin/manager */}
+      {/* Detail dialog for admin/manager with tabs */}
       <Dialog open={!!detailVisit} onOpenChange={(v) => !v && setDetailVisit(null)}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Détail visite — {detailVisit?.clients?.company_name}</DialogTitle>
+            <DialogTitle>Détail de la visite</DialogTitle>
           </DialogHeader>
           {detailVisit && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div><span className="text-muted-foreground">Date :</span> {new Date(detailVisit.visit_date).toLocaleDateString("fr-FR")}</div>
-                <div><span className="text-muted-foreground">Lieu :</span> {detailVisit.location || "—"}</div>
-                <div><span className="text-muted-foreground">Statut :</span> <Badge className={statusColors[detailVisit.status]}>{statusLabels[detailVisit.status]}</Badge></div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border bg-muted/30 p-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground text-xs">Commercial</p>
+                  <p className="font-medium">{profiles.get(detailVisit.commercial_id) || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Client</p>
+                  <p className="font-medium">{detailVisit.clients?.company_name || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Date</p>
+                  <p className="font-medium">{new Date(detailVisit.visit_date).toLocaleDateString("fr-FR")}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Statut</p>
+                  <Badge className={statusColors[detailVisit.status]}>{statusLabels[detailVisit.status]}</Badge>
+                </div>
+                {detailVisit.location && (
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground text-xs">Lieu</p>
+                    <p className="font-medium">{detailVisit.location}</p>
+                  </div>
+                )}
               </div>
-              {detailVisit.transcription && (
-                <div>
-                  <Label className="text-base font-semibold">Transcription</Label>
-                  <div className="mt-1 whitespace-pre-wrap rounded-md border bg-muted/50 p-3 text-sm max-h-48 overflow-y-auto">
-                    {detailVisit.transcription}
-                  </div>
-                </div>
-              )}
-              {detailVisit.summary && (
-                <div>
-                  <Label className="text-base font-semibold">Résumé IA</Label>
-                  <div className="mt-1 whitespace-pre-wrap rounded-md border bg-muted/50 p-3 text-sm max-h-48 overflow-y-auto">
-                    {detailVisit.summary}
-                  </div>
-                </div>
-              )}
-              {detailVisit.report && detailVisit.report !== detailVisit.summary && (
-                <div>
-                  <Label className="text-base font-semibold">Compte rendu</Label>
-                  <div className="mt-1 whitespace-pre-wrap rounded-md border bg-muted/50 p-3 text-sm">
-                    {detailVisit.report}
-                  </div>
-                </div>
-              )}
+
+              <Tabs defaultValue="summary">
+                <TabsList className="w-full">
+                  <TabsTrigger value="summary" className="flex-1">Résumé IA</TabsTrigger>
+                  <TabsTrigger value="transcription" className="flex-1">Transcription</TabsTrigger>
+                  <TabsTrigger value="report" className="flex-1">Rapport</TabsTrigger>
+                </TabsList>
+                <TabsContent value="summary" className="mt-3">
+                  {detailVisit.summary ? (
+                    <div className="whitespace-pre-wrap text-sm bg-muted/50 rounded-md border p-4 max-h-96 overflow-y-auto leading-relaxed">
+                      {detailVisit.summary}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm text-center py-6">Aucun résumé disponible</p>
+                  )}
+                </TabsContent>
+                <TabsContent value="transcription" className="mt-3">
+                  {detailVisit.transcription ? (
+                    <div className="whitespace-pre-wrap text-sm font-mono bg-muted/50 rounded-md border p-4 max-h-96 overflow-y-auto leading-relaxed">
+                      {detailVisit.transcription}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm text-center py-6">Aucune transcription disponible</p>
+                  )}
+                </TabsContent>
+                <TabsContent value="report" className="mt-3">
+                  {detailVisit.report ? (
+                    <div className="whitespace-pre-wrap text-sm bg-muted/50 rounded-md border p-4 max-h-96 overflow-y-auto leading-relaxed">
+                      {detailVisit.report}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm text-center py-6">Aucun rapport disponible</p>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
           )}
         </DialogContent>
