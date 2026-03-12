@@ -50,20 +50,45 @@ serve(async (req) => {
       if (!callerRole) throw new Error("Accès refusé : rôle administrateur requis");
     }
 
-    // Create the user
-    const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name },
-    });
+    // Check if user already exists
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    const existingUser = existingUsers?.users?.find((u: any) => u.email === email);
 
-    if (createError) throw createError;
+    let userId: string;
+
+    if (existingUser) {
+      // User exists - check if they already have a role
+      const { data: existingRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", existingUser.id)
+        .maybeSingle();
+
+      if (existingRole) {
+        return new Response(
+          JSON.stringify({ error: "Un utilisateur avec cet email existe déjà" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      userId = existingUser.id;
+    } else {
+      // Create the user
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name },
+      });
+
+      if (createError) throw createError;
+      userId = newUser.user.id;
+    }
 
     // Assign role
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .insert({ user_id: newUser.user.id, role });
+      .insert({ user_id: userId, role });
 
     if (roleError) throw roleError;
 
