@@ -75,10 +75,13 @@ export default function Users() {
         return;
       }
 
-    toast.success("Utilisateur créé avec succès");
-    setOpen(false);
-    setForm({ email: "", password: "", full_name: "", role: "commercial" });
-    fetchUsers();
+      toast.success("Utilisateur créé avec succès");
+      setOpen(false);
+      setForm({ email: "", password: "", full_name: "", role: "commercial" });
+      fetchUsers();
+    } catch (err: any) {
+      toast.error("Erreur lors de l'invitation", { description: err?.message || "Erreur inconnue" });
+    }
   };
 
   return (
