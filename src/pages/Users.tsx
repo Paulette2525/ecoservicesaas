@@ -52,15 +52,28 @@ export default function Users() {
       return;
     }
 
-    // Create user via edge function (admin invite)
-    const { data, error } = await supabase.functions.invoke("invite-user", {
-      body: { email: form.email, password: form.password, full_name: form.full_name, role: form.role },
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: { email: form.email, password: form.password, full_name: form.full_name, role: form.role },
+      });
 
-    if (error || data?.error) {
-      toast.error("Erreur lors de l'invitation", { description: data?.error || error?.message });
-      return;
-    }
+      if (error) {
+        // Try to parse the error context for a detailed message
+        let message = error.message;
+        try {
+          if (error.context && typeof error.context.json === 'function') {
+            const body = await error.context.json();
+            message = body?.error || message;
+          }
+        } catch {}
+        toast.error("Erreur lors de l'invitation", { description: message });
+        return;
+      }
+
+      if (data?.error) {
+        toast.error("Erreur lors de l'invitation", { description: data.error });
+        return;
+      }
 
     toast.success("Utilisateur créé avec succès");
     setOpen(false);
