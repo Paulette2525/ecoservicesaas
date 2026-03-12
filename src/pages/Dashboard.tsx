@@ -66,9 +66,8 @@ export default function Dashboard() {
   const applyPreset = (preset: PeriodPreset) => {
     const now = new Date();
     setPeriodPreset(preset);
-    if (preset === "month") { setDateFrom(startOfMonth(now)); setDateTo(endOfMonth(now)); }
-    else if (preset === "quarter") { setDateFrom(startOfQuarter(now)); setDateTo(endOfQuarter(now)); }
-    else if (preset === "year") { setDateFrom(startOfYear(now)); setDateTo(endOfYear(now)); }
+    if (preset === "week") { setDateFrom(startOfWeek(now, { locale: fr })); setDateTo(endOfWeek(now, { locale: fr })); }
+    else if (preset === "month") { setDateFrom(startOfMonth(now)); setDateTo(endOfMonth(now)); }
   };
 
   const dateFromStr = format(dateFrom, "yyyy-MM-dd");
