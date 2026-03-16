@@ -295,6 +295,7 @@ export default function Visits() {
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-left font-medium p-3">Client</th>
+                <th className="text-left font-medium p-3">Contact</th>
                 <th className="text-left font-medium p-3">Commercial</th>
                 <th className="text-left font-medium p-3">Date</th>
                 <th className="text-left font-medium p-3">Lieu</th>
