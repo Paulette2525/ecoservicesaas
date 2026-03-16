@@ -3,12 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, UserPlus } from "lucide-react";
+import { UserPlus, User } from "lucide-react";
 import { toast } from "sonner";
 
 interface UserProfile {
@@ -58,7 +57,6 @@ export default function Users() {
       });
 
       if (error) {
-        // Try to parse the error context for a detailed message
         let message = error.message;
         try {
           if (error.context && typeof error.context.json === 'function') {
@@ -85,14 +83,14 @@ export default function Users() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Gestion des utilisateurs</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Gestion des utilisateurs</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><UserPlus className="h-4 w-4 mr-2" />Inviter un utilisateur</Button>
+            <Button size="sm" className="w-full sm:w-auto"><UserPlus className="h-4 w-4 mr-2" />Inviter un utilisateur</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Inviter un utilisateur</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div><Label>Nom complet *</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
@@ -114,34 +112,62 @@ export default function Users() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nom</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Rôle</TableHead>
-                <TableHead>Statut</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Aucun utilisateur</TableCell></TableRow>
-              ) : users.map((u) => (
-                <TableRow key={u.id}>
-                  <TableCell className="font-medium">{u.full_name || "—"}</TableCell>
-                  <TableCell>{u.email}</TableCell>
-                  <TableCell><Badge variant="outline">{roleLabels[u.role ?? ""] ?? u.role}</Badge></TableCell>
-                  <TableCell>
+      {/* Mobile: Card list */}
+      <div className="space-y-3 sm:hidden">
+        {users.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">Aucun utilisateur</p>
+        ) : users.map((u) => (
+          <Card key={u.id}>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="font-medium truncate">{u.full_name || "—"}</p>
+                  <p className="text-sm text-muted-foreground truncate">{u.email}</p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{roleLabels[u.role ?? ""] ?? u.role}</Badge>
                     <Badge variant={u.is_active ? "default" : "secondary"}>
                       {u.is_active ? "Actif" : "Inactif"}
                     </Badge>
-                  </TableCell>
-                </TableRow>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop: Table */}
+      <Card className="hidden sm:block">
+        <CardContent className="p-0 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left font-medium p-3">Nom</th>
+                <th className="text-left font-medium p-3">Email</th>
+                <th className="text-left font-medium p-3">Rôle</th>
+                <th className="text-left font-medium p-3">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.length === 0 ? (
+                <tr><td colSpan={4} className="text-center text-muted-foreground py-8">Aucun utilisateur</td></tr>
+              ) : users.map((u) => (
+                <tr key={u.id} className="border-b last:border-0">
+                  <td className="p-3 font-medium">{u.full_name || "—"}</td>
+                  <td className="p-3">{u.email}</td>
+                  <td className="p-3"><Badge variant="outline">{roleLabels[u.role ?? ""] ?? u.role}</Badge></td>
+                  <td className="p-3">
+                    <Badge variant={u.is_active ? "default" : "secondary"}>
+                      {u.is_active ? "Actif" : "Inactif"}
+                    </Badge>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </CardContent>
       </Card>
     </div>

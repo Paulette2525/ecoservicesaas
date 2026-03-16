@@ -5,12 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Pencil, MessageSquare } from "lucide-react";
+import { Plus, Search, Pencil, MessageSquare, MapPin, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import VisitRecorder from "@/components/VisitRecorder";
@@ -143,14 +142,16 @@ export default function Visits() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Visites commerciales</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Visites commerciales</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Nouvelle visite</Button>
+            <Button onClick={openNew} size="sm" className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />Nouvelle visite
+            </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editing ? "Modifier la visite" : "Nouvelle visite"}</DialogTitle>
             </DialogHeader>
@@ -164,7 +165,7 @@ export default function Visits() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><Label>Date</Label><Input type="date" value={form.visit_date} onChange={(e) => setForm({ ...form, visit_date: e.target.value })} /></div>
                 <div><Label>Localisation</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
               </div>
@@ -202,58 +203,105 @@ export default function Visits() {
         </Dialog>
       </div>
 
-      <div className="relative max-w-sm">
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Rechercher par client..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Commercial</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Lieu</TableHead>
-                <TableHead>Statut</TableHead>
-                {isAdmin && <TableHead>Notes</TableHead>}
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">Aucune visite trouvée</TableCell></TableRow>
-              ) : filtered.map((v) => (
-                <TableRow key={v.id} className={isAdmin && v.transcription ? "cursor-pointer" : ""} onClick={() => isAdmin && v.transcription && setDetailVisit(v)}>
-                  <TableCell className="font-medium">{v.clients?.company_name}</TableCell>
-                  <TableCell>{profiles.get(v.commercial_id) || "—"}</TableCell>
-                  <TableCell>{new Date(v.visit_date).toLocaleDateString("fr-FR")}</TableCell>
-                  <TableCell>{v.location}</TableCell>
-                  <TableCell>
+      {/* Mobile: Card list */}
+      <div className="space-y-3 sm:hidden">
+        {filtered.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">Aucune visite trouvée</p>
+        ) : filtered.map((v) => (
+          <Card
+            key={v.id}
+            className="overflow-hidden"
+            onClick={() => isAdmin && v.transcription && setDetailVisit(v)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <span className="font-medium">{v.clients?.company_name}</span>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {new Date(v.visit_date).toLocaleDateString("fr-FR")}
+                    </div>
+                    {v.location && (
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {v.location}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge className={statusColors[v.status]}>{statusLabels[v.status]}</Badge>
-                  </TableCell>
+                    {v.transcription && <Badge variant="outline" className="text-xs">📝 Transcrit</Badge>}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Commercial : {profiles.get(v.commercial_id) || "—"}</p>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" onClick={() => openRecorderForVisit(v)} title={v.transcription ? "Ré-enregistrer" : "Ajouter des notes"}>
+                    <MessageSquare className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => openEdit(v)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop: Table */}
+      <Card className="hidden sm:block">
+        <CardContent className="p-0 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left font-medium p-3">Client</th>
+                <th className="text-left font-medium p-3">Commercial</th>
+                <th className="text-left font-medium p-3">Date</th>
+                <th className="text-left font-medium p-3">Lieu</th>
+                <th className="text-left font-medium p-3">Statut</th>
+                {isAdmin && <th className="text-left font-medium p-3">Notes</th>}
+                <th className="w-12 p-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">Aucune visite trouvée</td></tr>
+              ) : filtered.map((v) => (
+                <tr key={v.id} className={`border-b last:border-0 ${isAdmin && v.transcription ? "cursor-pointer hover:bg-muted/50" : ""}`} onClick={() => isAdmin && v.transcription && setDetailVisit(v)}>
+                  <td className="p-3 font-medium">{v.clients?.company_name}</td>
+                  <td className="p-3">{profiles.get(v.commercial_id) || "—"}</td>
+                  <td className="p-3">{new Date(v.visit_date).toLocaleDateString("fr-FR")}</td>
+                  <td className="p-3">{v.location}</td>
+                  <td className="p-3">
+                    <Badge className={statusColors[v.status]}>{statusLabels[v.status]}</Badge>
+                  </td>
                   {isAdmin && (
-                    <TableCell>
+                    <td className="p-3">
                       {v.transcription ? (
                         <Badge variant="outline" className="text-xs">📝 Transcrit</Badge>
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
-                    </TableCell>
+                    </td>
                   )}
-                  <TableCell>
+                  <td className="p-3">
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       <Button variant="ghost" size="icon" onClick={() => openRecorderForVisit(v)} title={v.transcription ? "Ré-enregistrer" : "Ajouter des notes"}>
                         <MessageSquare className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(v)}><Pencil className="h-4 w-4" /></Button>
                     </div>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </CardContent>
       </Card>
 
@@ -266,15 +314,15 @@ export default function Visits() {
         onComplete={fetchVisits}
       />
 
-      {/* Detail dialog for admin/manager with tabs */}
+      {/* Detail dialog */}
       <Dialog open={!!detailVisit} onOpenChange={(v) => !v && setDetailVisit(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Détail de la visite</DialogTitle>
           </DialogHeader>
           {detailVisit && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg border bg-muted/30 p-4 text-sm">
+              <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-4 text-sm">
                 <div>
                   <p className="text-muted-foreground text-xs">Commercial</p>
                   <p className="font-medium">{profiles.get(detailVisit.commercial_id) || "—"}</p>
@@ -301,13 +349,13 @@ export default function Visits() {
 
               <Tabs defaultValue="summary">
                 <TabsList className="w-full">
-                  <TabsTrigger value="summary" className="flex-1">Résumé IA</TabsTrigger>
-                  <TabsTrigger value="transcription" className="flex-1">Transcription</TabsTrigger>
-                  <TabsTrigger value="report" className="flex-1">Rapport</TabsTrigger>
+                  <TabsTrigger value="summary" className="flex-1 text-xs sm:text-sm">Résumé IA</TabsTrigger>
+                  <TabsTrigger value="transcription" className="flex-1 text-xs sm:text-sm">Transcription</TabsTrigger>
+                  <TabsTrigger value="report" className="flex-1 text-xs sm:text-sm">Rapport</TabsTrigger>
                 </TabsList>
                 <TabsContent value="summary" className="mt-3">
                   {detailVisit.summary ? (
-                    <div className="whitespace-pre-wrap text-sm bg-muted/50 rounded-md border p-4 max-h-96 overflow-y-auto leading-relaxed">
+                    <div className="whitespace-pre-wrap text-sm bg-muted/50 rounded-md border p-3 sm:p-4 max-h-96 overflow-y-auto leading-relaxed">
                       {detailVisit.summary}
                     </div>
                   ) : (
@@ -316,7 +364,7 @@ export default function Visits() {
                 </TabsContent>
                 <TabsContent value="transcription" className="mt-3">
                   {detailVisit.transcription ? (
-                    <div className="whitespace-pre-wrap text-sm font-mono bg-muted/50 rounded-md border p-4 max-h-96 overflow-y-auto leading-relaxed">
+                    <div className="whitespace-pre-wrap text-sm font-mono bg-muted/50 rounded-md border p-3 sm:p-4 max-h-96 overflow-y-auto leading-relaxed">
                       {detailVisit.transcription}
                     </div>
                   ) : (
@@ -325,7 +373,7 @@ export default function Visits() {
                 </TabsContent>
                 <TabsContent value="report" className="mt-3">
                   {detailVisit.report ? (
-                    <div className="whitespace-pre-wrap text-sm bg-muted/50 rounded-md border p-4 max-h-96 overflow-y-auto leading-relaxed">
+                    <div className="whitespace-pre-wrap text-sm bg-muted/50 rounded-md border p-3 sm:p-4 max-h-96 overflow-y-auto leading-relaxed">
                       {detailVisit.report}
                     </div>
                   ) : (

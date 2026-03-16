@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -84,14 +83,14 @@ export default function Demands() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Suivi des demandes</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Suivi des demandes</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4 mr-2" />Nouvelle demande</Button>
+            <Button size="sm" className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Nouvelle demande</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Nouvelle demande</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <div><Label>Client *</Label>
@@ -106,7 +105,7 @@ export default function Demands() {
                   <SelectContent>{products.map((p) => <SelectItem key={p.id} value={p.id}>{p.reference} — {p.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><Label>Quantité</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>
                 <div><Label>Statut</Label>
                   <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
@@ -125,33 +124,69 @@ export default function Demands() {
         </Dialog>
       </div>
 
-      <div className="relative max-w-sm">
+      <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Rechercher par client ou produit..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Client</TableHead>
-                <TableHead>Produit</TableHead>
-                <TableHead>Quantité</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Statut</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+      {/* Mobile: Card list */}
+      <div className="space-y-3 sm:hidden">
+        {filtered.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8">Aucune demande trouvée</p>
+        ) : filtered.map((d) => (
+          <Card key={d.id}>
+            <CardContent className="p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4 text-primary shrink-0" />
+                    <span className="font-medium truncate">{d.clients?.company_name}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">{d.products?.reference} — {d.products?.name}</p>
+                </div>
+                <span className="text-sm font-medium shrink-0">×{d.quantity}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">{new Date(d.demand_date).toLocaleDateString("fr-FR")}</span>
+                <Select value={d.status} onValueChange={(v) => updateStatus(d.id, v)}>
+                  <SelectTrigger className="w-[130px] h-8">
+                    <Badge className={statusColors[d.status]}>{statusLabels[d.status]}</Badge>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="disponible">Disponible</SelectItem>
+                    <SelectItem value="en_rupture">En rupture</SelectItem>
+                    <SelectItem value="en_commande">En commande</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop: Table */}
+      <Card className="hidden sm:block">
+        <CardContent className="p-0 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left font-medium p-3">Client</th>
+                <th className="text-left font-medium p-3">Produit</th>
+                <th className="text-left font-medium p-3">Quantité</th>
+                <th className="text-left font-medium p-3">Date</th>
+                <th className="text-left font-medium p-3">Statut</th>
+              </tr>
+            </thead>
+            <tbody>
               {filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Aucune demande trouvée</TableCell></TableRow>
+                <tr><td colSpan={5} className="text-center text-muted-foreground py-8">Aucune demande trouvée</td></tr>
               ) : filtered.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell className="font-medium">{d.clients?.company_name}</TableCell>
-                  <TableCell>{d.products?.reference} — {d.products?.name}</TableCell>
-                  <TableCell>{d.quantity}</TableCell>
-                  <TableCell>{new Date(d.demand_date).toLocaleDateString("fr-FR")}</TableCell>
-                  <TableCell>
+                <tr key={d.id} className="border-b last:border-0">
+                  <td className="p-3 font-medium">{d.clients?.company_name}</td>
+                  <td className="p-3">{d.products?.reference} — {d.products?.name}</td>
+                  <td className="p-3">{d.quantity}</td>
+                  <td className="p-3">{new Date(d.demand_date).toLocaleDateString("fr-FR")}</td>
+                  <td className="p-3">
                     <Select value={d.status} onValueChange={(v) => updateStatus(d.id, v)}>
                       <SelectTrigger className="w-[140px] h-8">
                         <Badge className={statusColors[d.status]}>{statusLabels[d.status]}</Badge>
@@ -162,11 +197,11 @@ export default function Demands() {
                         <SelectItem value="en_commande">En commande</SelectItem>
                       </SelectContent>
                     </Select>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </CardContent>
       </Card>
     </div>
