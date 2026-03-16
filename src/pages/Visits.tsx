@@ -24,6 +24,8 @@ interface Visit {
   report: string | null;
   summary: string | null;
   transcription: string | null;
+  contact_role: string | null;
+  contact_name: string | null;
   clients?: { company_name: string } | null;
 }
 
