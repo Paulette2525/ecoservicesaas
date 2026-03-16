@@ -65,6 +65,7 @@ export default function Visits() {
   const [form, setForm] = useState({
     client_id: "", visit_date: new Date().toISOString().split("T")[0],
     location: "", status: "prise_de_contact" as string, report: "",
+    contact_role: "", contact_name: "",
   });
 
   const [recorderOpen, setRecorderOpen] = useState(false);
