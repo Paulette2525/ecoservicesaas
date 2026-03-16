@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Square, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { savePendingRecording } from "@/lib/offlineDb";
 
 interface VisitRecorderProps {
   open: boolean;
