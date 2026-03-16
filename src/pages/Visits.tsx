@@ -40,6 +40,14 @@ const statusLabels: Record<string, string> = {
   commande_probable: "Commande probable",
 };
 
+const contactRoleLabels: Record<string, string> = {
+  directeur: "Directeur",
+  responsable_achat: "Responsable achat",
+  technicien: "Technicien",
+  commercial: "Commercial",
+  magasinier: "Magasinier",
+};
+
 const statusColors: Record<string, string> = {
   opportunite: "bg-warning text-warning-foreground",
   prise_de_contact: "bg-secondary text-secondary-foreground",
