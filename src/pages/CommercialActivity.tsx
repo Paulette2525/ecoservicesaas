@@ -198,43 +198,66 @@ export default function CommercialActivity() {
         </CardHeader>
         <CardContent>
           {commercialRows.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Commercial</TableHead>
-                  <TableHead className="text-center">Visites</TableHead>
-                  <TableHead className="text-center">Clients visités</TableHead>
-                  <TableHead className="text-center">Taux conversion</TableHead>
-                  <TableHead className="text-center">Rapports</TableHead>
-                  <TableHead>Dernière visite</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="overflow-x-auto">
+              {/* Mobile: simplified cards */}
+              <div className="space-y-2 sm:hidden">
                 {commercialRows.map((c) => (
-                  <TableRow
+                  <div
                     key={c.userId}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="border rounded-lg p-3 cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => setExpandedId(expandedId === c.userId ? null : c.userId)}
                   >
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell className="text-center">{c.totalVisits}</TableCell>
-                    <TableCell className="text-center">{c.uniqueClients}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={c.conversionRate >= 50 ? "default" : "secondary"}>{c.conversionRate}%</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">{c.reportsGenerated}</TableCell>
-                    <TableCell>{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString("fr-FR") : "—"}</TableCell>
-                    <TableCell>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{c.name}</span>
                       {expandedId === c.userId ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                      <span>{c.totalVisits} visites</span>
+                      <span>{c.uniqueClients} clients</span>
+                      <Badge variant={c.conversionRate >= 50 ? "default" : "secondary"}>{c.conversionRate}%</Badge>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              {/* Desktop: table */}
+              <Table className="hidden sm:table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Commercial</TableHead>
+                    <TableHead className="text-center">Visites</TableHead>
+                    <TableHead className="text-center">Clients</TableHead>
+                    <TableHead className="text-center">Conversion</TableHead>
+                    <TableHead className="text-center">Rapports</TableHead>
+                    <TableHead>Dernière visite</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {commercialRows.map((c) => (
+                    <TableRow
+                      key={c.userId}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setExpandedId(expandedId === c.userId ? null : c.userId)}
+                    >
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell className="text-center">{c.totalVisits}</TableCell>
+                      <TableCell className="text-center">{c.uniqueClients}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={c.conversionRate >= 50 ? "default" : "secondary"}>{c.conversionRate}%</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{c.reportsGenerated}</TableCell>
+                      <TableCell>{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString("fr-FR") : "—"}</TableCell>
+                      <TableCell>
+                        {expandedId === c.userId ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <p className="text-muted-foreground text-center py-6">Aucune activité sur cette période</p>
-          )}
+          )
         </CardContent>
       </Card>
 

@@ -247,26 +247,28 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {commercialStats.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Commercial</TableHead>
-                      <TableHead className="text-center">Nb visites</TableHead>
-                      <TableHead className="text-center">Clients visités</TableHead>
-                      <TableHead>Dernière visite</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {commercialStats.map((c) => (
-                      <TableRow key={c.name}>
-                        <TableCell className="font-medium">{c.name}</TableCell>
-                        <TableCell className="text-center">{c.totalVisits}</TableCell>
-                        <TableCell className="text-center">{c.uniqueClients}</TableCell>
-                        <TableCell>{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString("fr-FR") : "—"}</TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Commercial</TableHead>
+                        <TableHead className="text-center">Visites</TableHead>
+                        <TableHead className="text-center hidden sm:table-cell">Clients visités</TableHead>
+                        <TableHead className="hidden sm:table-cell">Dernière visite</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {commercialStats.map((c) => (
+                        <TableRow key={c.name}>
+                          <TableCell className="font-medium">{c.name}</TableCell>
+                          <TableCell className="text-center">{c.totalVisits}</TableCell>
+                          <TableCell className="text-center hidden sm:table-cell">{c.uniqueClients}</TableCell>
+                          <TableCell className="hidden sm:table-cell">{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString("fr-FR") : "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               ) : (
                 <p className="text-muted-foreground text-center py-4">Aucune activité sur cette période</p>
               )}
