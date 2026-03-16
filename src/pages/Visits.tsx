@@ -107,6 +107,8 @@ export default function Visits() {
       location: form.location || null,
       status: form.status as any,
       report: form.report || null,
+      contact_role: form.contact_role || null,
+      contact_name: form.contact_name || null,
     };
 
     if (editing) {
