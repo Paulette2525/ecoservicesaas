@@ -139,7 +139,7 @@ export default function Visits() {
 
   const openEdit = (v: Visit) => {
     setEditing(v);
-    setForm({ client_id: v.client_id, visit_date: v.visit_date.split("T")[0], location: v.location ?? "", status: v.status, report: v.report ?? "" });
+    setForm({ client_id: v.client_id, visit_date: v.visit_date.split("T")[0], location: v.location ?? "", status: v.status, report: v.report ?? "", contact_role: v.contact_role ?? "", contact_name: v.contact_name ?? "" });
     setOpen(true);
   };
 
