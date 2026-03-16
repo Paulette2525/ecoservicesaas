@@ -156,31 +156,32 @@ export default function CommercialActivity() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Activité des commerciaux</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Activité des commerciaux</h1>
 
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-4 w-4 text-muted-foreground" />
           {(["week", "month"] as PeriodPreset[]).map((p) => (
             <Button key={p} variant={periodPreset === p ? "default" : "outline"} size="sm" onClick={() => applyPreset(p)}>
-              {p === "week" ? "Cette semaine" : "Ce mois"}
+              {p === "week" ? "Semaine" : "Mois"}
             </Button>
           ))}
-          <Separator orientation="vertical" className="h-6" />
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant={periodPreset === "custom" ? "default" : "outline"} size="sm" className="gap-1">
+              <Button variant={periodPreset === "custom" ? "default" : "outline"} size="sm" className="gap-1 text-xs sm:text-sm">
                 <CalendarIcon className="h-3.5 w-3.5" />
-                {format(dateFrom, "dd/MM/yy")} — {format(dateTo, "dd/MM/yy")}
+                <span className="hidden sm:inline">{format(dateFrom, "dd/MM/yy")} — {format(dateTo, "dd/MM/yy")}</span>
+                <span className="sm:hidden">Période</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 flex" align="end">
+            <PopoverContent className="w-auto p-0 flex flex-col sm:flex-row" align="end">
               <div className="p-3">
                 <p className="text-xs text-muted-foreground mb-2 font-medium">Date début</p>
                 <Calendar mode="single" selected={dateFrom} onSelect={(d) => { if (d) { setDateFrom(d); setPeriodPreset("custom"); } }} className="p-0 pointer-events-auto" />
               </div>
-              <Separator orientation="vertical" />
+              <Separator orientation="vertical" className="hidden sm:block" />
+              <Separator className="sm:hidden" />
               <div className="p-3">
                 <p className="text-xs text-muted-foreground mb-2 font-medium">Date fin</p>
                 <Calendar mode="single" selected={dateTo} onSelect={(d) => { if (d) { setDateTo(d); setPeriodPreset("custom"); } }} className="p-0 pointer-events-auto" />
@@ -197,40 +198,63 @@ export default function CommercialActivity() {
         </CardHeader>
         <CardContent>
           {commercialRows.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Commercial</TableHead>
-                  <TableHead className="text-center">Visites</TableHead>
-                  <TableHead className="text-center">Clients visités</TableHead>
-                  <TableHead className="text-center">Taux conversion</TableHead>
-                  <TableHead className="text-center">Rapports</TableHead>
-                  <TableHead>Dernière visite</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <div className="overflow-x-auto">
+              {/* Mobile: simplified cards */}
+              <div className="space-y-2 sm:hidden">
                 {commercialRows.map((c) => (
-                  <TableRow
+                  <div
                     key={c.userId}
-                    className="cursor-pointer hover:bg-muted/50"
+                    className="border rounded-lg p-3 cursor-pointer hover:bg-muted/50 transition-colors"
                     onClick={() => setExpandedId(expandedId === c.userId ? null : c.userId)}
                   >
-                    <TableCell className="font-medium">{c.name}</TableCell>
-                    <TableCell className="text-center">{c.totalVisits}</TableCell>
-                    <TableCell className="text-center">{c.uniqueClients}</TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={c.conversionRate >= 50 ? "default" : "secondary"}>{c.conversionRate}%</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">{c.reportsGenerated}</TableCell>
-                    <TableCell>{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString("fr-FR") : "—"}</TableCell>
-                    <TableCell>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{c.name}</span>
                       {expandedId === c.userId ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                      <span>{c.totalVisits} visites</span>
+                      <span>{c.uniqueClients} clients</span>
+                      <Badge variant={c.conversionRate >= 50 ? "default" : "secondary"}>{c.conversionRate}%</Badge>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+              {/* Desktop: table */}
+              <Table className="hidden sm:table">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Commercial</TableHead>
+                    <TableHead className="text-center">Visites</TableHead>
+                    <TableHead className="text-center">Clients</TableHead>
+                    <TableHead className="text-center">Conversion</TableHead>
+                    <TableHead className="text-center">Rapports</TableHead>
+                    <TableHead>Dernière visite</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {commercialRows.map((c) => (
+                    <TableRow
+                      key={c.userId}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setExpandedId(expandedId === c.userId ? null : c.userId)}
+                    >
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell className="text-center">{c.totalVisits}</TableCell>
+                      <TableCell className="text-center">{c.uniqueClients}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant={c.conversionRate >= 50 ? "default" : "secondary"}>{c.conversionRate}%</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{c.reportsGenerated}</TableCell>
+                      <TableCell>{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString("fr-FR") : "—"}</TableCell>
+                      <TableCell>
+                        {expandedId === c.userId ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <p className="text-muted-foreground text-center py-6">Aucune activité sur cette période</p>
           )}

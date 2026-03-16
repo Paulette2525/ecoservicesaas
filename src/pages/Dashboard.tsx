@@ -147,9 +147,9 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Tableau de bord</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold">Tableau de bord</h1>
 
         {/* Period filter bar */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -161,20 +161,21 @@ export default function Dashboard() {
               size="sm"
               onClick={() => applyPreset(p)}
             >
-              {p === "week" ? "Cette semaine" : "Ce mois"}
+              {p === "week" ? "Semaine" : "Mois"}
             </Button>
           ))}
 
-          <Separator orientation="vertical" className="h-6" />
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant={periodPreset === "custom" ? "default" : "outline"} size="sm" className="gap-1">
+              <Button variant={periodPreset === "custom" ? "default" : "outline"} size="sm" className="gap-1 text-xs sm:text-sm">
                 <CalendarIcon className="h-3.5 w-3.5" />
-                {format(dateFrom, "dd/MM/yy")} — {format(dateTo, "dd/MM/yy")}
+                <span className="hidden sm:inline">{format(dateFrom, "dd/MM/yy")} — {format(dateTo, "dd/MM/yy")}</span>
+                <span className="sm:hidden">Période</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 flex" align="end">
+            <PopoverContent className="w-auto p-0 flex flex-col sm:flex-row" align="end">
               <div className="p-3">
                 <p className="text-xs text-muted-foreground mb-2 font-medium">Date début</p>
                 <Calendar
@@ -184,7 +185,8 @@ export default function Dashboard() {
                   className={cn("p-0 pointer-events-auto")}
                 />
               </div>
-              <Separator orientation="vertical" />
+              <Separator orientation="vertical" className="hidden sm:block" />
+              <Separator className="sm:hidden" />
               <div className="p-3">
                 <p className="text-xs text-muted-foreground mb-2 font-medium">Date fin</p>
                 <Calendar
@@ -199,15 +201,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {kpis.map((kpi) => (
           <Card key={kpi.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
-              <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
+              <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.color}`} />
             </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{kpi.value}</p>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <p className="text-2xl sm:text-3xl font-bold">{kpi.value}</p>
             </CardContent>
           </Card>
         ))}
@@ -245,26 +247,28 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               {commercialStats.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Commercial</TableHead>
-                      <TableHead className="text-center">Nb visites</TableHead>
-                      <TableHead className="text-center">Clients visités</TableHead>
-                      <TableHead>Dernière visite</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {commercialStats.map((c) => (
-                      <TableRow key={c.name}>
-                        <TableCell className="font-medium">{c.name}</TableCell>
-                        <TableCell className="text-center">{c.totalVisits}</TableCell>
-                        <TableCell className="text-center">{c.uniqueClients}</TableCell>
-                        <TableCell>{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString("fr-FR") : "—"}</TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Commercial</TableHead>
+                        <TableHead className="text-center">Visites</TableHead>
+                        <TableHead className="text-center hidden sm:table-cell">Clients visités</TableHead>
+                        <TableHead className="hidden sm:table-cell">Dernière visite</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {commercialStats.map((c) => (
+                        <TableRow key={c.name}>
+                          <TableCell className="font-medium">{c.name}</TableCell>
+                          <TableCell className="text-center">{c.totalVisits}</TableCell>
+                          <TableCell className="text-center hidden sm:table-cell">{c.uniqueClients}</TableCell>
+                          <TableCell className="hidden sm:table-cell">{c.lastVisit ? new Date(c.lastVisit).toLocaleDateString("fr-FR") : "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               ) : (
                 <p className="text-muted-foreground text-center py-4">Aucune activité sur cette période</p>
               )}

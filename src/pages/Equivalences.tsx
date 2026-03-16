@@ -49,7 +49,6 @@ export default function Equivalences() {
 
   const getName = (id: string) => products.find((p) => p.id === id);
 
-  // Group equivalences (avoid duplicates)
   const seen = new Set<string>();
   const uniqueEquiv = equivalences.filter((e) => {
     const key = [e.product_id, e.equivalent_id].sort().join("-");
@@ -59,13 +58,13 @@ export default function Equivalences() {
   });
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Équivalences produits</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <h1 className="text-xl sm:text-2xl font-bold">Équivalences produits</h1>
 
       <Card>
-        <CardHeader><CardTitle>Ajouter une équivalence</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base sm:text-lg">Ajouter une équivalence</CardTitle></CardHeader>
         <CardContent>
-          <div className="flex items-end gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
             <div className="flex-1">
               <Label>Produit A</Label>
               <Select value={productA} onValueChange={setProductA}>
@@ -80,13 +79,13 @@ export default function Equivalences() {
                 <SelectContent>{products.map((p) => <SelectItem key={p.id} value={p.id}>{p.reference} — {p.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <Button onClick={addEquivalence}><Plus className="h-4 w-4 mr-2" />Ajouter</Button>
+            <Button onClick={addEquivalence} className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Ajouter</Button>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Équivalences existantes</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base sm:text-lg">Équivalences existantes</CardTitle></CardHeader>
         <CardContent>
           {uniqueEquiv.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">Aucune équivalence configurée</p>
@@ -96,15 +95,20 @@ export default function Equivalences() {
                 const a = getName(e.product_id);
                 const b = getName(e.equivalent_id);
                 return (
-                  <div key={e.id} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">{a?.reference}</Badge>
-                      <span>{a?.name}</span>
-                      <span className="text-muted-foreground">⟷</span>
-                      <Badge variant="outline">{b?.reference}</Badge>
-                      <span>{b?.name}</span>
+                  <div key={e.id} className="flex items-center justify-between p-3 rounded-lg border gap-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Badge variant="outline" className="shrink-0">{a?.reference}</Badge>
+                        <span className="truncate text-sm">{a?.name}</span>
+                      </div>
+                      <span className="text-muted-foreground hidden sm:inline">⟷</span>
+                      <span className="text-muted-foreground sm:hidden text-xs">↕</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Badge variant="outline" className="shrink-0">{b?.reference}</Badge>
+                        <span className="truncate text-sm">{b?.name}</span>
+                      </div>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => removeEquivalence(e)}><X className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeEquivalence(e)}><X className="h-4 w-4" /></Button>
                   </div>
                 );
               })}
