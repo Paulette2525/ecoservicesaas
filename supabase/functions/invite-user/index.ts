@@ -34,16 +34,25 @@ serve(async (req) => {
     if (!isBootstrap) {
       // Verify the caller is an admin
       const authHeader = req.headers.get("Authorization");
-      if (!authHeader) throw new Error("Non autorisé");
+      if (!authHeader?.startsWith("Bearer ")) throw new Error("Non autorisé");
+
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        supabaseAnonKey,
+        { global: { headers: { Authorization: authHeader } } }
+      );
 
       const token = authHeader.replace("Bearer ", "");
-      const { data: { user: caller } } = await supabaseAdmin.auth.getUser(token);
-      if (!caller) throw new Error("Non autorisé");
+      const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) throw new Error("Non autorisé");
+
+      const callerId = claimsData.claims.sub as string;
 
       const { data: callerRole } = await supabaseAdmin
         .from("user_roles")
         .select("role")
-        .eq("user_id", caller.id)
+        .eq("user_id", callerId)
         .eq("role", "admin")
         .maybeSingle();
 
