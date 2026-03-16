@@ -257,7 +257,7 @@ export default function CommercialActivity() {
             </div>
           ) : (
             <p className="text-muted-foreground text-center py-6">Aucune activité sur cette période</p>
-          )
+          )}
         </CardContent>
       </Card>
 
