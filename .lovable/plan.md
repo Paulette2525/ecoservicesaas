@@ -1,22 +1,19 @@
 
 
-# Supprimer toutes les visites et clients
+# Ajouter le profil et nom du contact rencontré lors d'une visite
 
-## Données actuelles
-- 7 visites
-- 2 clients
-- 0 produits de visite
-- 0 demandes clients
+## Migration base de données
+Ajouter deux colonnes à la table `visits` :
+- `contact_role` (text, nullable) — profil du contact : directeur, responsable_achat, technicien, commercial, magasinier
+- `contact_name` (text, nullable) — nom de la personne rencontrée
 
-## Ce que je vais faire
+## Modification du formulaire de visite (`Visits.tsx`)
+- Ajouter un champ **Select** "Profil rencontré" avec les 5 options
+- Ajouter un champ **Input** "Nom du contact" (texte libre)
+- Inclure ces deux champs dans le payload d'insertion/mise à jour
+- Mettre à jour l'interface TypeScript `Visit` avec `contact_role` et `contact_name`
 
-Supprimer dans l'ordre (pour respecter les dépendances) :
-1. `visit_products` (liés aux visites)
-2. `visits` (liés aux clients)
-3. `client_demands` (liés aux clients)
-4. `clients`
-
-Les fichiers audio dans le bucket `visit-recordings` seront aussi nettoyés si présents.
-
-Aucune modification de code nécessaire — uniquement suppression de données en base.
+## Affichage
+- Afficher le profil et le nom du contact dans les cartes mobiles et le tableau desktop
+- Afficher ces infos dans le dialogue de détail de la visite
 
