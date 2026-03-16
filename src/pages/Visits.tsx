@@ -384,6 +384,15 @@ export default function Visits() {
                     <p className="font-medium">{detailVisit.location}</p>
                   </div>
                 )}
+                {(detailVisit.contact_name || detailVisit.contact_role) && (
+                  <div>
+                    <p className="text-muted-foreground text-xs">Contact rencontré</p>
+                    <p className="font-medium">
+                      {detailVisit.contact_name || "—"}
+                      {detailVisit.contact_role && ` (${contactRoleLabels[detailVisit.contact_role] || detailVisit.contact_role})`}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <Tabs defaultValue="summary">
