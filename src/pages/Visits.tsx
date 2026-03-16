@@ -193,6 +193,23 @@ export default function Visits() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Profil rencontré</Label>
+                  <Select value={form.contact_role} onValueChange={(v) => setForm({ ...form, contact_role: v })}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner un profil" /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(contactRoleLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Nom du contact</Label>
+                  <Input placeholder="Nom de la personne rencontrée" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
+                </div>
+              </div>
               <div>
                 <Label>Notes</Label>
                 <Textarea
