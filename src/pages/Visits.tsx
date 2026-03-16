@@ -24,6 +24,8 @@ interface Visit {
   report: string | null;
   summary: string | null;
   transcription: string | null;
+  contact_role: string | null;
+  contact_name: string | null;
   clients?: { company_name: string } | null;
 }
 
@@ -36,6 +38,14 @@ const statusLabels: Record<string, string> = {
   opportunite: "Opportunité",
   prise_de_contact: "Prise de contact",
   commande_probable: "Commande probable",
+};
+
+const contactRoleLabels: Record<string, string> = {
+  directeur: "Directeur",
+  responsable_achat: "Responsable achat",
+  technicien: "Technicien",
+  commercial: "Commercial",
+  magasinier: "Magasinier",
 };
 
 const statusColors: Record<string, string> = {
@@ -55,6 +65,7 @@ export default function Visits() {
   const [form, setForm] = useState({
     client_id: "", visit_date: new Date().toISOString().split("T")[0],
     location: "", status: "prise_de_contact" as string, report: "",
+    contact_role: "", contact_name: "",
   });
 
   const [recorderOpen, setRecorderOpen] = useState(false);
@@ -96,6 +107,8 @@ export default function Visits() {
       location: form.location || null,
       status: form.status as any,
       report: form.report || null,
+      contact_role: form.contact_role || null,
+      contact_name: form.contact_name || null,
     };
 
     if (editing) {
@@ -120,13 +133,13 @@ export default function Visits() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ client_id: "", visit_date: new Date().toISOString().split("T")[0], location: "", status: "prise_de_contact", report: "" });
+    setForm({ client_id: "", visit_date: new Date().toISOString().split("T")[0], location: "", status: "prise_de_contact", report: "", contact_role: "", contact_name: "" });
     setOpen(true);
   };
 
   const openEdit = (v: Visit) => {
     setEditing(v);
-    setForm({ client_id: v.client_id, visit_date: v.visit_date.split("T")[0], location: v.location ?? "", status: v.status, report: v.report ?? "" });
+    setForm({ client_id: v.client_id, visit_date: v.visit_date.split("T")[0], location: v.location ?? "", status: v.status, report: v.report ?? "", contact_role: v.contact_role ?? "", contact_name: v.contact_name ?? "" });
     setOpen(true);
   };
 
@@ -179,6 +192,23 @@ export default function Visits() {
                     <SelectItem value="commande_probable">Commande probable</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Profil rencontré</Label>
+                  <Select value={form.contact_role} onValueChange={(v) => setForm({ ...form, contact_role: v })}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionner un profil" /></SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(contactRoleLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Nom du contact</Label>
+                  <Input placeholder="Nom de la personne rencontrée" value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} />
+                </div>
               </div>
               <div>
                 <Label>Notes</Label>
@@ -236,8 +266,12 @@ export default function Visits() {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge className={statusColors[v.status]}>{statusLabels[v.status]}</Badge>
+                    {v.contact_role && <Badge variant="outline" className="text-xs">{contactRoleLabels[v.contact_role] || v.contact_role}</Badge>}
                     {v.transcription && <Badge variant="outline" className="text-xs">📝 Transcrit</Badge>}
                   </div>
+                  {v.contact_name && (
+                    <p className="text-xs text-muted-foreground">Contact : {v.contact_name}</p>
+                  )}
                   <p className="text-xs text-muted-foreground">Commercial : {profiles.get(v.commercial_id) || "—"}</p>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -261,6 +295,7 @@ export default function Visits() {
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-left font-medium p-3">Client</th>
+                <th className="text-left font-medium p-3">Contact</th>
                 <th className="text-left font-medium p-3">Commercial</th>
                 <th className="text-left font-medium p-3">Date</th>
                 <th className="text-left font-medium p-3">Lieu</th>
@@ -271,10 +306,14 @@ export default function Visits() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">Aucune visite trouvée</td></tr>
+                <tr><td colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">Aucune visite trouvée</td></tr>
               ) : filtered.map((v) => (
                 <tr key={v.id} className={`border-b last:border-0 ${isAdmin && v.transcription ? "cursor-pointer hover:bg-muted/50" : ""}`} onClick={() => isAdmin && v.transcription && setDetailVisit(v)}>
                   <td className="p-3 font-medium">{v.clients?.company_name}</td>
+                  <td className="p-3">
+                    <div>{v.contact_name || "—"}</div>
+                    {v.contact_role && <div className="text-xs text-muted-foreground">{contactRoleLabels[v.contact_role] || v.contact_role}</div>}
+                  </td>
                   <td className="p-3">{profiles.get(v.commercial_id) || "—"}</td>
                   <td className="p-3">{new Date(v.visit_date).toLocaleDateString("fr-FR")}</td>
                   <td className="p-3">{v.location}</td>
@@ -343,6 +382,15 @@ export default function Visits() {
                   <div className="col-span-2">
                     <p className="text-muted-foreground text-xs">Lieu</p>
                     <p className="font-medium">{detailVisit.location}</p>
+                  </div>
+                )}
+                {(detailVisit.contact_name || detailVisit.contact_role) && (
+                  <div>
+                    <p className="text-muted-foreground text-xs">Contact rencontré</p>
+                    <p className="font-medium">
+                      {detailVisit.contact_name || "—"}
+                      {detailVisit.contact_role && ` (${contactRoleLabels[detailVisit.contact_role] || detailVisit.contact_role})`}
+                    </p>
                   </div>
                 )}
               </div>
