@@ -1,0 +1,1 @@
+ALTER TABLE public.visits ADD COLUMN contact_role text, ADD COLUMN contact_name text;

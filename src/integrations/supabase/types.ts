@@ -274,6 +274,8 @@ export type Database = {
           audio_url: string | null
           client_id: string
           commercial_id: string
+          contact_name: string | null
+          contact_role: string | null
           created_at: string
           id: string
           location: string | null
@@ -288,6 +290,8 @@ export type Database = {
           audio_url?: string | null
           client_id: string
           commercial_id: string
+          contact_name?: string | null
+          contact_role?: string | null
           created_at?: string
           id?: string
           location?: string | null
@@ -302,6 +306,8 @@ export type Database = {
           audio_url?: string | null
           client_id?: string
           commercial_id?: string
+          contact_name?: string | null
+          contact_role?: string | null
           created_at?: string
           id?: string
           location?: string | null
