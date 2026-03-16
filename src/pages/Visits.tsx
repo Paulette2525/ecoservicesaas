@@ -306,10 +306,14 @@ export default function Visits() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">Aucune visite trouvée</td></tr>
+                <tr><td colSpan={isAdmin ? 8 : 7} className="text-center text-muted-foreground py-8">Aucune visite trouvée</td></tr>
               ) : filtered.map((v) => (
                 <tr key={v.id} className={`border-b last:border-0 ${isAdmin && v.transcription ? "cursor-pointer hover:bg-muted/50" : ""}`} onClick={() => isAdmin && v.transcription && setDetailVisit(v)}>
                   <td className="p-3 font-medium">{v.clients?.company_name}</td>
+                  <td className="p-3">
+                    <div>{v.contact_name || "—"}</div>
+                    {v.contact_role && <div className="text-xs text-muted-foreground">{contactRoleLabels[v.contact_role] || v.contact_role}</div>}
+                  </td>
                   <td className="p-3">{profiles.get(v.commercial_id) || "—"}</td>
                   <td className="p-3">{new Date(v.visit_date).toLocaleDateString("fr-FR")}</td>
                   <td className="p-3">{v.location}</td>
