@@ -133,7 +133,7 @@ export default function Visits() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ client_id: "", visit_date: new Date().toISOString().split("T")[0], location: "", status: "prise_de_contact", report: "" });
+    setForm({ client_id: "", visit_date: new Date().toISOString().split("T")[0], location: "", status: "prise_de_contact", report: "", contact_role: "", contact_name: "" });
     setOpen(true);
   };
 
