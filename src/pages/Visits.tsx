@@ -266,8 +266,12 @@ export default function Visits() {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge className={statusColors[v.status]}>{statusLabels[v.status]}</Badge>
+                    {v.contact_role && <Badge variant="outline" className="text-xs">{contactRoleLabels[v.contact_role] || v.contact_role}</Badge>}
                     {v.transcription && <Badge variant="outline" className="text-xs">📝 Transcrit</Badge>}
                   </div>
+                  {v.contact_name && (
+                    <p className="text-xs text-muted-foreground">Contact : {v.contact_name}</p>
+                  )}
                   <p className="text-xs text-muted-foreground">Commercial : {profiles.get(v.commercial_id) || "—"}</p>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
