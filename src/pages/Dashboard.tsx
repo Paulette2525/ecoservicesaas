@@ -204,12 +204,12 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {kpis.map((kpi) => (
           <Card key={kpi.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
-              <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
+            <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">{kpi.label}</CardTitle>
+              <kpi.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${kpi.color}`} />
             </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{kpi.value}</p>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <p className="text-2xl sm:text-3xl font-bold">{kpi.value}</p>
             </CardContent>
           </Card>
         ))}
