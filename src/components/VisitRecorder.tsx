@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Square, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { savePendingRecording } from "@/lib/offlineDb";
 
 interface VisitRecorderProps {
   open: boolean;
@@ -73,6 +74,19 @@ export default function VisitRecorder({ open, onOpenChange, visitId, clientName,
       if (!audioBlob || audioBlob.size === 0) {
         toast.error("Aucun audio enregistré");
         setStep("ready");
+        return;
+      }
+
+      // If offline, save to IndexedDB for later sync
+      if (!navigator.onLine) {
+        await savePendingRecording({
+          visitId,
+          clientName,
+          visitDate,
+          audioBlob,
+        });
+        setStep("done");
+        toast.success("Enregistrement sauvegardé hors ligne — il sera synchronisé automatiquement");
         return;
       }
 
