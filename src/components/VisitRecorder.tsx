@@ -77,6 +77,19 @@ export default function VisitRecorder({ open, onOpenChange, visitId, clientName,
         return;
       }
 
+      // If offline, save to IndexedDB for later sync
+      if (!navigator.onLine) {
+        await savePendingRecording({
+          visitId,
+          clientName,
+          visitDate,
+          audioBlob,
+        });
+        setStep("done");
+        toast.success("Enregistrement sauvegardé hors ligne — il sera synchronisé automatiquement");
+        return;
+      }
+
       const fileName = `${visitId}/${Date.now()}.webm`;
       const { error: uploadError } = await supabase.storage
         .from("visit-recordings")
