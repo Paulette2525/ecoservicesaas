@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SelectWithOther from "@/components/SelectWithOther";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Pencil, MessageSquare, MapPin, Calendar } from "lucide-react";
@@ -184,26 +185,27 @@ export default function Visits() {
               </div>
               <div>
                 <Label>Statut</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="prise_de_contact">Prise de contact</SelectItem>
-                    <SelectItem value="opportunite">Opportunité</SelectItem>
-                    <SelectItem value="commande_probable">Commande probable</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SelectWithOther
+                  options={[
+                    { value: "prise_de_contact", label: "Prise de contact" },
+                    { value: "opportunite", label: "Opportunité" },
+                    { value: "commande_probable", label: "Commande probable" },
+                  ]}
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v })}
+                  otherPlaceholder="Saisir un statut..."
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Profil rencontré</Label>
-                  <Select value={form.contact_role} onValueChange={(v) => setForm({ ...form, contact_role: v })}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner un profil" /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(contactRoleLabels).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SelectWithOther
+                    options={Object.entries(contactRoleLabels).map(([key, label]) => ({ value: key, label }))}
+                    value={form.contact_role}
+                    onValueChange={(v) => setForm({ ...form, contact_role: v })}
+                    placeholder="Sélectionner un profil"
+                    otherPlaceholder="Saisir un profil..."
+                  />
                 </div>
                 <div>
                   <Label>Nom du contact</Label>
