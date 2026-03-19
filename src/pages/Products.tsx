@@ -37,6 +37,7 @@ export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [supplierFilter, setSupplierFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState({
@@ -52,6 +53,7 @@ export default function Products() {
   useEffect(() => { fetchProducts(); }, []);
 
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))] as string[];
+  const suppliers = [...new Set(products.map(p => p.supplier).filter(Boolean))] as string[];
 
   const handleSave = async () => {
     if (!form.reference.trim() || !form.name.trim()) { toast.error("Référence et nom requis"); return; }
@@ -108,7 +110,8 @@ export default function Products() {
       (p.category?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
       (p.code_article?.toLowerCase().includes(search.toLowerCase()) ?? false);
     const matchCategory = categoryFilter === "all" || p.category === categoryFilter;
-    return matchSearch && matchCategory;
+    const matchSupplier = supplierFilter === "all" || p.supplier === supplierFilter;
+    return matchSearch && matchCategory && matchSupplier;
   });
 
   return (
@@ -166,6 +169,18 @@ export default function Products() {
             <SelectItem value="all">Toutes les catégories</SelectItem>
             {categories.sort().map(c => (
               <SelectItem key={c} value={c}>{c}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <Filter className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Fournisseur" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les fournisseurs</SelectItem>
+            {suppliers.sort().map(s => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
             ))}
           </SelectContent>
         </Select>
