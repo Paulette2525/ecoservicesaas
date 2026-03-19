@@ -199,14 +199,13 @@ export default function Visits() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Profil rencontré</Label>
-                  <Select value={form.contact_role} onValueChange={(v) => setForm({ ...form, contact_role: v })}>
-                    <SelectTrigger><SelectValue placeholder="Sélectionner un profil" /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(contactRoleLabels).map(([key, label]) => (
-                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SelectWithOther
+                    options={Object.entries(contactRoleLabels).map(([key, label]) => ({ value: key, label }))}
+                    value={form.contact_role}
+                    onValueChange={(v) => setForm({ ...form, contact_role: v })}
+                    placeholder="Sélectionner un profil"
+                    otherPlaceholder="Saisir un profil..."
+                  />
                 </div>
                 <div>
                   <Label>Nom du contact</Label>

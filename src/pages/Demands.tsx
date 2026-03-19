@@ -109,14 +109,16 @@ export default function Demands() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><Label>Quantité</Label><Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></div>
                 <div><Label>Statut</Label>
-                  <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="disponible">Disponible</SelectItem>
-                      <SelectItem value="en_rupture">En rupture</SelectItem>
-                      <SelectItem value="en_commande">En commande</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <SelectWithOther
+                    options={[
+                      { value: "disponible", label: "Disponible" },
+                      { value: "en_rupture", label: "En rupture" },
+                      { value: "en_commande", label: "En commande" },
+                    ]}
+                    value={form.status}
+                    onValueChange={(v) => setForm({ ...form, status: v })}
+                    otherPlaceholder="Saisir un statut..."
+                  />
                 </div>
               </div>
               <Button onClick={handleSave} className="w-full">Créer</Button>
