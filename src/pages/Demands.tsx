@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SelectWithOther from "@/components/SelectWithOther";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
