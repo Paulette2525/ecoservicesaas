@@ -63,13 +63,19 @@ export default function Products() {
   // Reset page on filter change
   useEffect(() => { setPage(0); }, [debouncedSearch, categoryFilter, supplierFilter]);
 
-  // Load filter options once
+  // Load filter options once via RPC (no row limit)
   useEffect(() => {
     const loadFilters = async () => {
-      const { data } = await supabase.from("products").select("category, supplier");
+      const { data } = await supabase.rpc("get_distinct_product_filters");
       if (data) {
-        setCategories([...new Set(data.map(d => d.category).filter(Boolean))] as string[]);
-        setSuppliers([...new Set(data.map(d => d.supplier).filter(Boolean))] as string[]);
+        const cats: string[] = [];
+        const sups: string[] = [];
+        for (const row of data) {
+          if (row.filter_type === "category") cats.push(row.filter_value);
+          else if (row.filter_type === "supplier") sups.push(row.filter_value);
+        }
+        setCategories(cats);
+        setSuppliers(sups);
       }
     };
     loadFilters();
