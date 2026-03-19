@@ -172,6 +172,18 @@ export default function Products() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <Filter className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Fournisseur" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les fournisseurs</SelectItem>
+            {suppliers.sort().map(s => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Mobile: Card list */}
