@@ -345,6 +345,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_distinct_product_filters: {
+        Args: never
+        Returns: {
+          filter_type: string
+          filter_value: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
