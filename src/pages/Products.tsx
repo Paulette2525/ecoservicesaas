@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Package, Filter } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Plus, Search, Pencil, Package, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -26,6 +27,8 @@ interface Product {
   code_article: string | null;
 }
 
+const PAGE_SIZE = 50;
+
 const formatPrice = (price: number | null) => {
   if (price == null) return "—";
   return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "DZD", minimumFractionDigits: 0 }).format(price);
@@ -35,9 +38,15 @@ export default function Products() {
   const { role } = useAuth();
   const canEdit = role === "admin" || role === "manager";
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [supplierFilter, setSupplierFilter] = useState("all");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [suppliers, setSuppliers] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState({
@@ -45,32 +54,61 @@ export default function Products() {
     supply_delay_days: "", price_ht: "", price_ttc: "", supplier: "", code_article: "",
   });
 
-  const fetchProducts = async () => {
-    const { data } = await supabase.from("products").select("*").order("name");
-    if (data) setProducts(data as Product[]);
-  };
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  useEffect(() => { fetchProducts(); }, []);
+  // Reset page on filter change
+  useEffect(() => { setPage(0); }, [debouncedSearch, categoryFilter, supplierFilter]);
 
-  const categories = [...new Set(products.map(p => p.category).filter(Boolean))] as string[];
-  const suppliers = [...new Set(products.map(p => p.supplier).filter(Boolean))] as string[];
+  // Load filter options once
+  useEffect(() => {
+    const loadFilters = async () => {
+      const { data } = await supabase.from("products").select("category, supplier");
+      if (data) {
+        setCategories([...new Set(data.map(d => d.category).filter(Boolean))] as string[]);
+        setSuppliers([...new Set(data.map(d => d.supplier).filter(Boolean))] as string[]);
+      }
+    };
+    loadFilters();
+  }, []);
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    let query = supabase.from("products").select("*", { count: "exact" });
+
+    if (debouncedSearch) {
+      const s = `%${debouncedSearch}%`;
+      query = query.or(`name.ilike.${s},reference.ilike.${s},code_article.ilike.${s}`);
+    }
+    if (categoryFilter !== "all") query = query.eq("category", categoryFilter);
+    if (supplierFilter !== "all") query = query.eq("supplier", supplierFilter);
+
+    const from = page * PAGE_SIZE;
+    const { data, count, error } = await query.order("name").range(from, from + PAGE_SIZE - 1);
+    if (error) { toast.error(error.message); setLoading(false); return; }
+    setProducts((data ?? []) as Product[]);
+    setTotalCount(count ?? 0);
+    setLoading(false);
+  }, [page, debouncedSearch, categoryFilter, supplierFilter]);
+
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const handleSave = async () => {
     if (!form.reference.trim() || !form.name.trim()) { toast.error("Référence et nom requis"); return; }
-
     const payload = {
-      reference: form.reference,
-      name: form.name,
-      category: form.category || null,
-      description: form.description || null,
+      reference: form.reference, name: form.name,
+      category: form.category || null, description: form.description || null,
       stock_available: parseInt(form.stock_available) || 0,
       supply_delay_days: form.supply_delay_days ? parseInt(form.supply_delay_days) : null,
       price_ht: form.price_ht ? parseFloat(form.price_ht) : null,
       price_ttc: form.price_ttc ? parseFloat(form.price_ttc) : null,
-      supplier: form.supplier || null,
-      code_article: form.code_article || null,
+      supplier: form.supplier || null, code_article: form.code_article || null,
     };
-
     if (editing) {
       const { error } = await supabase.from("products").update(payload).eq("id", editing.id);
       if (error) { toast.error(error.message); return; }
@@ -80,9 +118,7 @@ export default function Products() {
       if (error) { toast.error(error.message); return; }
       toast.success("Produit créé");
     }
-    setOpen(false);
-    setEditing(null);
-    fetchProducts();
+    setOpen(false); setEditing(null); fetchProducts();
   };
 
   const openNew = () => {
@@ -97,22 +133,35 @@ export default function Products() {
       reference: p.reference, name: p.name, category: p.category ?? "",
       description: p.description ?? "", stock_available: String(p.stock_available),
       supply_delay_days: p.supply_delay_days ? String(p.supply_delay_days) : "",
-      price_ht: p.price_ht ? String(p.price_ht) : "",
-      price_ttc: p.price_ttc ? String(p.price_ttc) : "",
+      price_ht: p.price_ht ? String(p.price_ht) : "", price_ttc: p.price_ttc ? String(p.price_ttc) : "",
       supplier: p.supplier ?? "", code_article: p.code_article ?? "",
     });
     setOpen(true);
   };
 
-  const filtered = products.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.reference.toLowerCase().includes(search.toLowerCase()) ||
-      (p.category?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-      (p.code_article?.toLowerCase().includes(search.toLowerCase()) ?? false);
-    const matchCategory = categoryFilter === "all" || p.category === categoryFilter;
-    const matchSupplier = supplierFilter === "all" || p.supplier === supplierFilter;
-    return matchSearch && matchCategory && matchSupplier;
-  });
+  const PaginationBar = () => (
+    <div className="flex items-center justify-between">
+      <p className="text-sm text-muted-foreground">
+        {totalCount} produit{totalCount !== 1 ? "s" : ""} — Page {page + 1} / {totalPages}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+          <ChevronLeft className="h-4 w-4 mr-1" />Préc.
+        </Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+          Suiv.<ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  const SkeletonRows = () => (
+    <div className="space-y-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="h-16 w-full rounded-lg" />
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -167,9 +216,7 @@ export default function Products() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes les catégories</SelectItem>
-            {categories.sort().map(c => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
+            {categories.sort().map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={supplierFilter} onValueChange={setSupplierFilter}>
@@ -179,87 +226,91 @@ export default function Products() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous les fournisseurs</SelectItem>
-            {suppliers.sort().map(s => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
+            {suppliers.sort().map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Mobile: Card list */}
-      <div className="space-y-3 sm:hidden">
-        {filtered.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">Aucun produit trouvé</p>
-        ) : filtered.map((p) => (
-          <Card key={p.id}>
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4 text-primary shrink-0" />
-                    <span className="font-medium truncate">{p.name}</span>
+      {loading ? <SkeletonRows /> : (
+        <>
+          {/* Mobile: Card list */}
+          <div className="space-y-3 sm:hidden">
+            {products.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">Aucun produit trouvé</p>
+            ) : products.map((p) => (
+              <Card key={p.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-primary shrink-0" />
+                        <span className="font-medium truncate">{p.name}</span>
+                      </div>
+                      <p className="text-xs font-mono text-muted-foreground">{p.reference}</p>
+                      {p.category && <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{p.category}</span>}
+                      <div className="flex items-center gap-3 text-sm">
+                        <span>Stock : <Badge variant={p.stock_available > 0 ? "default" : "destructive"}>{p.stock_available}</Badge></span>
+                        {p.supply_delay_days && <span className="text-muted-foreground">{p.supply_delay_days}j délai</span>}
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        {p.price_ht != null && <span>HT: {formatPrice(p.price_ht)}</span>}
+                        {p.price_ttc != null && <span>TTC: {formatPrice(p.price_ttc)}</span>}
+                      </div>
+                    </div>
+                    {canEdit && (
+                      <Button variant="ghost" size="icon" className="shrink-0" onClick={() => openEdit(p)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
-                  <p className="text-xs font-mono text-muted-foreground">{p.reference}</p>
-                  {p.category && <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{p.category}</span>}
-                  <div className="flex items-center gap-3 text-sm">
-                    <span>Stock : <Badge variant={p.stock_available > 0 ? "default" : "destructive"}>{p.stock_available}</Badge></span>
-                    {p.supply_delay_days && <span className="text-muted-foreground">{p.supply_delay_days}j délai</span>}
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                    {p.price_ht != null && <span>HT: {formatPrice(p.price_ht)}</span>}
-                    {p.price_ttc != null && <span>TTC: {formatPrice(p.price_ttc)}</span>}
-                  </div>
-                </div>
-                {canEdit && (
-                  <Button variant="ghost" size="icon" className="shrink-0" onClick={() => openEdit(p)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Desktop: Table */}
+          <Card className="hidden sm:block">
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left font-medium p-3">Référence</th>
+                    <th className="text-left font-medium p-3">Nom</th>
+                    <th className="text-left font-medium p-3">Catégorie</th>
+                    <th className="text-right font-medium p-3">Prix HT</th>
+                    <th className="text-right font-medium p-3">Prix TTC</th>
+                    <th className="text-left font-medium p-3">Stock</th>
+                    {canEdit && <th className="w-12 p-3"></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.length === 0 ? (
+                    <tr><td colSpan={canEdit ? 7 : 6} className="text-center text-muted-foreground py-8">Aucun produit trouvé</td></tr>
+                  ) : products.map((p) => (
+                    <tr key={p.id} className="border-b last:border-0">
+                      <td className="p-3 font-mono text-sm">{p.reference}</td>
+                      <td className="p-3 font-medium">{p.name}</td>
+                      <td className="p-3">{p.category}</td>
+                      <td className="p-3 text-right">{formatPrice(p.price_ht)}</td>
+                      <td className="p-3 text-right">{formatPrice(p.price_ttc)}</td>
+                      <td className="p-3">
+                        <Badge variant={p.stock_available > 0 ? "default" : "destructive"}>{p.stock_available}</Badge>
+                      </td>
+                      {canEdit && (
+                        <td className="p-3">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </CardContent>
           </Card>
-        ))}
-      </div>
 
-      {/* Desktop: Table */}
-      <Card className="hidden sm:block">
-        <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="text-left font-medium p-3">Référence</th>
-                <th className="text-left font-medium p-3">Nom</th>
-                <th className="text-left font-medium p-3">Catégorie</th>
-                <th className="text-right font-medium p-3">Prix HT</th>
-                <th className="text-right font-medium p-3">Prix TTC</th>
-                <th className="text-left font-medium p-3">Stock</th>
-                {canEdit && <th className="w-12 p-3"></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={canEdit ? 7 : 6} className="text-center text-muted-foreground py-8">Aucun produit trouvé</td></tr>
-              ) : filtered.map((p) => (
-                <tr key={p.id} className="border-b last:border-0">
-                  <td className="p-3 font-mono text-sm">{p.reference}</td>
-                  <td className="p-3 font-medium">{p.name}</td>
-                  <td className="p-3">{p.category}</td>
-                  <td className="p-3 text-right">{formatPrice(p.price_ht)}</td>
-                  <td className="p-3 text-right">{formatPrice(p.price_ttc)}</td>
-                  <td className="p-3">
-                    <Badge variant={p.stock_available > 0 ? "default" : "destructive"}>{p.stock_available}</Badge>
-                  </td>
-                  {canEdit && (
-                    <td className="p-3">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Pencil className="h-4 w-4" /></Button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+          <PaginationBar />
+        </>
+      )}
     </div>
   );
 }
