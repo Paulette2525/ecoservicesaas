@@ -185,14 +185,16 @@ export default function Visits() {
               </div>
               <div>
                 <Label>Statut</Label>
-                <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="prise_de_contact">Prise de contact</SelectItem>
-                    <SelectItem value="opportunite">Opportunité</SelectItem>
-                    <SelectItem value="commande_probable">Commande probable</SelectItem>
-                  </SelectContent>
-                </Select>
+                <SelectWithOther
+                  options={[
+                    { value: "prise_de_contact", label: "Prise de contact" },
+                    { value: "opportunite", label: "Opportunité" },
+                    { value: "commande_probable", label: "Commande probable" },
+                  ]}
+                  value={form.status}
+                  onValueChange={(v) => setForm({ ...form, status: v })}
+                  otherPlaceholder="Saisir un statut..."
+                />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
