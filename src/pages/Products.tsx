@@ -110,7 +110,8 @@ export default function Products() {
       (p.category?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
       (p.code_article?.toLowerCase().includes(search.toLowerCase()) ?? false);
     const matchCategory = categoryFilter === "all" || p.category === categoryFilter;
-    return matchSearch && matchCategory;
+    const matchSupplier = supplierFilter === "all" || p.supplier === supplierFilter;
+    return matchSearch && matchCategory && matchSupplier;
   });
 
   return (
