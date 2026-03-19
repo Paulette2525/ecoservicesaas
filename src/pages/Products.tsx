@@ -53,6 +53,7 @@ export default function Products() {
   useEffect(() => { fetchProducts(); }, []);
 
   const categories = [...new Set(products.map(p => p.category).filter(Boolean))] as string[];
+  const suppliers = [...new Set(products.map(p => p.supplier).filter(Boolean))] as string[];
 
   const handleSave = async () => {
     if (!form.reference.trim() || !form.name.trim()) { toast.error("Référence et nom requis"); return; }
