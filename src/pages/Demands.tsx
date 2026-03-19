@@ -62,11 +62,11 @@ export default function Demands() {
 
   const fetchAll = async () => {
     const [d, c, p] = await Promise.all([
-      supabase.from("client_demands").select("*, clients(company_name), products(name, reference)").order("demand_date", { ascending: false }),
+      supabase.from("client_demands").select("id, client_id, product_id, commercial_id, quantity, status, demand_date, attachment_url, clients(company_name), products(name, reference)").order("demand_date", { ascending: false }),
       supabase.from("clients").select("id, company_name").order("company_name"),
       supabase.from("products").select("id, name, reference, supplier").order("name").limit(10000),
     ]);
-    if (d.data) setDemands(d.data as Demand[]);
+    if (d.data) setDemands(d.data as any as Demand[]);
     if (c.data) setClients(c.data);
     if (p.data) setProducts(p.data);
   };

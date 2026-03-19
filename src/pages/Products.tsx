@@ -66,7 +66,7 @@ export default function Products() {
   // Load filter options once via RPC (no row limit)
   useEffect(() => {
     const loadFilters = async () => {
-      const { data } = await supabase.rpc("get_distinct_product_filters");
+      const { data } = await supabase.rpc("get_distinct_product_filters" as any);
       if (data) {
         const cats: string[] = [];
         const sups: string[] = [];
