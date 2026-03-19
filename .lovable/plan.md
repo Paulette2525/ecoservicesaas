@@ -1,38 +1,44 @@
 
 
-# Importer 4 nouveaux catalogues fournisseurs
+# Filtre fournisseur + Optimisation page Équivalences
 
-## Analyse des fichiers
+## 1. Page Produits — Ajout filtre fournisseur
 
-Les 4 fichiers ont **exactement la même structure** que TRANSLINK (Code article, Référence, Désignation, PU Vente HT, PU Vente TTC, Stock réel, Fournisseur principal).
+**Fichier :** `src/pages/Products.tsx`
 
-| Fichier | Fournisseur | Lignes brutes | Types de produits |
-|---------|------------|---------------|-------------------|
-| flexible_bjflex.xls | BJFLEX | ~10 000 | Flexibles hydrauliques (R15, 2SC, 4SP, 4SH, raccords, embouts) |
-| synflex.xls | SYNFLEX | ~46 | Câbles, gaines, cales, plaques à bornes |
-| conti_courroies.xls | CONTITECH | ~2 669 | Courroies (XPA, XPB, XPZ, SPZ, SPA, SPB) |
-| export_NTN_SNR.xls | NTN-SNR | ~5 401 | Roulements, bagues, joints, paliers |
+- Ajouter un state `supplierFilter` (défaut `"all"`)
+- Extraire la liste des fournisseurs uniques depuis les produits (comme pour les catégories)
+- Ajouter un 2e `Select` à côté du filtre catégorie avec les options : Tous, BJFLEX, CONTITECH, NTN-SNR, SYNFLEX, TRANSLINK
+- Ajouter la condition `matchSupplier` dans le filtre `filtered`
 
-Chaque fichier contient des **lignes dupliquées** par référence (stocks différents par lot) — les stocks seront additionnés comme pour TRANSLINK.
+## 2. Page Équivalences — Optimisation complète
 
-## Plan d'implémentation
+Le problème actuel : avec 6 500+ produits, les deux `Select` rendent 6 500 `SelectItem` chacun, ce qui est inutilisable. De plus, il n'y a aucun moyen de filtrer ou chercher.
 
-### 1. Script d'import des données
-Pour chaque fichier :
-- Lire le fichier XLS avec pandas
-- Dédoublonner par référence (somme des stocks, garder le prix)
-- Extraire automatiquement les catégories depuis les désignations
-- Insérer dans la table `products` existante (mêmes colonnes : reference, name, category, code_article, price_ht, price_ttc, stock_available, supplier)
+**Refonte de `src/pages/Equivalences.tsx` :**
 
-### 2. Catégories attendues par fournisseur
-- **BJFLEX** : Flexible R15, Flexible 2SC, Flexible 4SP, Flexible 4SH, Raccord, Embout, Adaptateur...
-- **SYNFLEX** : Câble, Gaine, Cale, Plaque à bornes, Ruban, Vernis
-- **CONTITECH** : Courroie XPA, Courroie XPB, Courroie XPZ, Courroie SPZ, Courroie SPA...
-- **NTN-SNR** : Roulement, Bague, Joint, Palier, Butée, Rotule...
+- **Recherche avec autocomplétion** : Remplacer les `Select` par des champs `Input` avec recherche textuelle (type-ahead). L'utilisateur tape une référence ou un nom, et une liste filtrée apparaît (via `Command`/`Combobox` pattern)
+- **Afficher le fournisseur** : Inclure `supplier` dans les données produit chargées, et l'afficher dans les résultats de recherche et dans les équivalences existantes (Badge fournisseur)
+- **Filtre par fournisseur** : Ajouter un filtre fournisseur sur les équivalences existantes pour retrouver facilement les correspondances par marque
+- **Recherche dans les équivalences** : Ajouter un champ de recherche pour filtrer les équivalences existantes par référence ou nom
+- **Pagination/limite** : Ne charger que `id, reference, name, supplier` pour les produits, et limiter la requête ou paginer les résultats
 
-### 3. Aucune modification de code nécessaire
-La page Produits et le formulaire supportent déjà tous les champs (prix, fournisseur, code article, catégorie, filtre). Il suffit d'insérer les données.
+### Composant Combobox (sélection produit)
+Utilisation du pattern `Popover` + `Command` (déjà disponible dans le projet via `@/components/ui/command`) pour créer un sélecteur de produit avec recherche intégrée. La recherche filtre côté client parmi les produits chargés.
 
-### Estimation
-~1 000+ produits uniques ajoutés aux 184 TRANSLINK existants.
+### Technical details
+
+```text
+Products.tsx:
+  + supplierFilter state
+  + suppliers = [...new Set(products.map(p => p.supplier).filter(Boolean))]
+  + Select component for supplier
+  + matchSupplier condition in filter
+
+Equivalences.tsx:
+  - Replace Select with Popover+Command combobox
+  - Product interface: add supplier field
+  - Add search + supplier filter on existing equivalences
+  - Show supplier Badge on each equivalence row
+```
 
