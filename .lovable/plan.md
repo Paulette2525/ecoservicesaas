@@ -1,40 +1,40 @@
 
 
-# Optimiser le chargement de la page Produits
+# 3 corrections : fournisseurs Produits + recherche produit Demandes + PDF sur demandes
 
-## Problème
+## 1. Fournisseurs manquants sur la page Produits
 
-Deux problèmes majeurs :
-1. **Limite Supabase** : la requête `select("*").order("name")` ne retourne que 1 000 lignes par défaut, donc 5 500+ produits sont invisibles
-2. **Performance** : même si on augmentait la limite, charger et rendre 6 500 produits d'un coup est trop lent
+**Problème** : La requête `select("category, supplier")` (ligne 69) est limitée à 1 000 lignes par défaut. Avec 6 500+ produits, beaucoup de fournisseurs sont invisibles.
 
-## Solution : Pagination côté serveur + filtres côté serveur
+**Solution** : Créer une fonction SQL `get_distinct_product_filters()` qui retourne les catégories et fournisseurs distincts directement, sans limite de lignes.
 
-### 1. Pagination serveur (50 produits par page)
-- Ajouter un state `page` (défaut 0) et `totalCount`
-- Utiliser `.range(page * 50, (page + 1) * 50 - 1)` sur la requête Supabase
-- Utiliser `.select("*", { count: "exact" })` pour obtenir le nombre total
-- Afficher des boutons Précédent / Suivant + numéro de page + total
+- Migration : `CREATE FUNCTION get_distinct_product_filters()` retournant les `DISTINCT category` et `DISTINCT supplier`
+- `Products.tsx` : appeler `.rpc("get_distinct_product_filters")` au lieu du `select`
 
-### 2. Filtres côté serveur (au lieu de côté client)
-- Appliquer `search` via `.or()` avec `ilike` sur name, reference, code_article
-- Appliquer `categoryFilter` via `.eq("category", ...)` 
-- Appliquer `supplierFilter` via `.eq("supplier", ...)`
-- Réinitialiser la page à 0 quand un filtre change
+## 2. Recherche produit dans le formulaire Demandes
 
-### 3. Chargement des catégories/fournisseurs séparément
-- Une requête distincte pour charger les listes de catégories et fournisseurs uniques (requête légère `select("category, supplier")` avec `limit(10000)`)
-- Stocker ces listes indépendamment des produits paginés
+**Problème** : Le `Select` avec 6 500+ `SelectItem` est inutilisable.
 
-### 4. État de chargement
-- Ajouter un skeleton/spinner pendant le chargement de chaque page
-- Debounce de 300ms sur la recherche textuelle pour éviter les requêtes à chaque frappe
+**Solution** : Remplacer le `Select` produit par un Combobox (`Popover` + `Command`) avec recherche textuelle, identique au pattern déjà utilisé sur la page Équivalences.
 
-### Fichier modifié
-- `src/pages/Products.tsx` : refonte complète de la logique de données
+- Charger les produits avec `id, reference, name, supplier`
+- Filtrer côté client (top 50 résultats affichés)
+- L'utilisateur tape une référence ou un nom pour trouver rapidement
 
-### Résultat attendu
-- Chargement initial < 1 seconde (50 produits au lieu de 6 500)
-- Navigation fluide entre les pages
-- Recherche et filtres instantanés côté serveur
+## 3. Fichier PDF attaché aux demandes
+
+**Migration SQL** :
+- Ajouter une colonne `attachment_url text` à la table `client_demands`
+
+**Storage** : Utiliser un nouveau bucket `demand-attachments` (privé) pour stocker les PDF.
+
+**Formulaire Demandes** :
+- Ajouter un champ `<input type="file" accept=".pdf">` dans le formulaire de création
+- Upload le fichier vers le bucket, stocker l'URL dans `attachment_url`
+- Afficher un lien/icône PDF sur chaque demande qui a un fichier attaché
+
+### Fichiers modifiés
+- `src/pages/Products.tsx` : remplacer la requête filtres par l'appel RPC
+- `src/pages/Demands.tsx` : combobox produit + upload PDF + affichage lien PDF
+- 1 migration SQL : fonction `get_distinct_product_filters` + colonne `attachment_url` + bucket storage
 
