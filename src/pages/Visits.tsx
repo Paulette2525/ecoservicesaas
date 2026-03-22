@@ -378,7 +378,7 @@ export default function Visits() {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Statut</p>
-                  <Badge className={statusColors[detailVisit.status]}>{statusLabels[detailVisit.status]}</Badge>
+                  <Badge className={statusColors[detailVisit.status] || "bg-muted text-muted-foreground"}>{statusLabels[detailVisit.status] || detailVisit.status}</Badge>
                 </div>
                 {detailVisit.location && (
                   <div className="col-span-2">
