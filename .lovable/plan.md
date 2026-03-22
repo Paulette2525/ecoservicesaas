@@ -1,40 +1,23 @@
 
 
-# 3 corrections : fournisseurs Produits + recherche produit Demandes + PDF sur demandes
+# Champ texte intégré dans le sélecteur "Autre"
 
-## 1. Fournisseurs manquants sur la page Produits
+## Modification
 
-**Problème** : La requête `select("category, supplier")` (ligne 69) est limitée à 1 000 lignes par défaut. Avec 6 500+ produits, beaucoup de fournisseurs sont invisibles.
+Refonte du composant `SelectWithOther` pour utiliser un **Popover + Command** (combobox) au lieu d'un Select + Input séparé. Quand l'utilisateur sélectionne "Autre", un champ de saisie apparaît **directement dans le menu déroulant**, pas en dessous.
 
-**Solution** : Créer une fonction SQL `get_distinct_product_filters()` qui retourne les catégories et fournisseurs distincts directement, sans limite de lignes.
+### Comportement cible
+1. L'utilisateur clique sur le sélecteur → un menu déroulant s'ouvre avec les options + "Autre"
+2. S'il choisit une option prédéfinie → le menu se ferme, la valeur est sélectionnée
+3. S'il choisit "Autre" → un champ texte apparaît **dans le même menu** pour saisir sa valeur personnalisée
+4. Quand il valide (Entrée ou clic sur un bouton "Valider"), le menu se ferme et la valeur custom est utilisée
 
-- Migration : `CREATE FUNCTION get_distinct_product_filters()` retournant les `DISTINCT category` et `DISTINCT supplier`
-- `Products.tsx` : appeler `.rpc("get_distinct_product_filters")` au lieu du `select`
+### Fichier modifié
+- `src/components/SelectWithOther.tsx` : remplacement du pattern `Select` + `Input` par un `Popover` + liste d'options + input intégré
 
-## 2. Recherche produit dans le formulaire Demandes
+### Pas de changement nécessaire dans les pages
+Les pages `Visits.tsx` et `Demands.tsx` utilisent déjà `SelectWithOther` avec la même interface (`options`, `value`, `onValueChange`). Seul le rendu interne change.
 
-**Problème** : Le `Select` avec 6 500+ `SelectItem` est inutilisable.
-
-**Solution** : Remplacer le `Select` produit par un Combobox (`Popover` + `Command`) avec recherche textuelle, identique au pattern déjà utilisé sur la page Équivalences.
-
-- Charger les produits avec `id, reference, name, supplier`
-- Filtrer côté client (top 50 résultats affichés)
-- L'utilisateur tape une référence ou un nom pour trouver rapidement
-
-## 3. Fichier PDF attaché aux demandes
-
-**Migration SQL** :
-- Ajouter une colonne `attachment_url text` à la table `client_demands`
-
-**Storage** : Utiliser un nouveau bucket `demand-attachments` (privé) pour stocker les PDF.
-
-**Formulaire Demandes** :
-- Ajouter un champ `<input type="file" accept=".pdf">` dans le formulaire de création
-- Upload le fichier vers le bucket, stocker l'URL dans `attachment_url`
-- Afficher un lien/icône PDF sur chaque demande qui a un fichier attaché
-
-### Fichiers modifiés
-- `src/pages/Products.tsx` : remplacer la requête filtres par l'appel RPC
-- `src/pages/Demands.tsx` : combobox produit + upload PDF + affichage lien PDF
-- 1 migration SQL : fonction `get_distinct_product_filters` + colonne `attachment_url` + bucket storage
+### Affichage des valeurs custom
+Ajout d'un fallback dans `Visits.tsx` pour les statuts custom (lignes 270, 323, 381) : si le statut n'est pas dans `statusLabels`, afficher la valeur brute avec un badge gris neutre.
 
