@@ -267,7 +267,7 @@ export default function Visits() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className={statusColors[v.status]}>{statusLabels[v.status]}</Badge>
+                    <Badge className={statusColors[v.status] || "bg-muted text-muted-foreground"}>{statusLabels[v.status] || v.status}</Badge>
                     {v.contact_role && <Badge variant="outline" className="text-xs">{contactRoleLabels[v.contact_role] || v.contact_role}</Badge>}
                     {v.transcription && <Badge variant="outline" className="text-xs">📝 Transcrit</Badge>}
                   </div>
@@ -320,7 +320,7 @@ export default function Visits() {
                   <td className="p-3">{new Date(v.visit_date).toLocaleDateString("fr-FR")}</td>
                   <td className="p-3">{v.location}</td>
                   <td className="p-3">
-                    <Badge className={statusColors[v.status]}>{statusLabels[v.status]}</Badge>
+                    <Badge className={statusColors[v.status] || "bg-muted text-muted-foreground"}>{statusLabels[v.status] || v.status}</Badge>
                   </td>
                   {isAdmin && (
                     <td className="p-3">
@@ -378,7 +378,7 @@ export default function Visits() {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Statut</p>
-                  <Badge className={statusColors[detailVisit.status]}>{statusLabels[detailVisit.status]}</Badge>
+                  <Badge className={statusColors[detailVisit.status] || "bg-muted text-muted-foreground"}>{statusLabels[detailVisit.status] || detailVisit.status}</Badge>
                 </div>
                 {detailVisit.location && (
                   <div className="col-span-2">

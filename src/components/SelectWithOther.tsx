@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useState, useEffect, useRef } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Check, ChevronDown, PenLine } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Option {
   value: string;
@@ -16,8 +19,6 @@ interface SelectWithOtherProps {
   otherPlaceholder?: string;
 }
 
-const OTHER_KEY = "__other__";
-
 export default function SelectWithOther({
   options,
   value,
@@ -26,61 +27,117 @@ export default function SelectWithOther({
   otherLabel = "Autre",
   otherPlaceholder = "Saisir une valeur...",
 }: SelectWithOtherProps) {
-  const isPredefined = !value || options.some((o) => o.value === value);
-  const [isOther, setIsOther] = useState(!isPredefined && !!value);
-  const [customValue, setCustomValue] = useState(!isPredefined ? value : "");
+  const [open, setOpen] = useState(false);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customValue, setCustomValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isPredefined = options.some((o) => o.value === value);
+  const displayLabel = isPredefined
+    ? options.find((o) => o.value === value)?.label
+    : value || placeholder;
 
   useEffect(() => {
-    const predefined = !value || options.some((o) => o.value === value);
-    if (predefined) {
-      setIsOther(false);
+    if (!open) {
+      setShowCustomInput(false);
       setCustomValue("");
-    } else {
-      setIsOther(true);
-      setCustomValue(value);
     }
-  }, [value, options]);
+  }, [open]);
 
-  const handleSelectChange = (v: string) => {
-    if (v === OTHER_KEY) {
-      setIsOther(true);
-      setCustomValue("");
-      onValueChange("");
-    } else {
-      setIsOther(false);
-      setCustomValue("");
-      onValueChange(v);
-    }
+  const handleSelectOption = (optionValue: string) => {
+    onValueChange(optionValue);
+    setOpen(false);
   };
 
-  const handleCustomChange = (text: string) => {
-    setCustomValue(text);
-    onValueChange(text);
+  const handleOtherClick = () => {
+    setShowCustomInput(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const handleCustomSubmit = () => {
+    if (customValue.trim()) {
+      onValueChange(customValue.trim());
+      setOpen(false);
+    }
   };
 
   return (
-    <div className="space-y-2">
-      <Select value={isOther ? OTHER_KEY : value} onValueChange={handleSelectChange}>
-        <SelectTrigger>
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+        >
+          <span className={cn(!value && "text-muted-foreground")}>
+            {displayLabel}
+          </span>
+          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <div className="flex flex-col">
           {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
+            <button
+              key={o.value}
+              type="button"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-left transition-colors",
+                value === o.value && "bg-accent"
+              )}
+              onClick={() => handleSelectOption(o.value)}
+            >
+              <Check
+                className={cn(
+                  "h-4 w-4 shrink-0",
+                  value === o.value ? "opacity-100" : "opacity-0"
+                )}
+              />
               {o.label}
-            </SelectItem>
+            </button>
           ))}
-          <SelectItem value={OTHER_KEY}>{otherLabel}</SelectItem>
-        </SelectContent>
-      </Select>
-      {isOther && (
-        <Input
-          placeholder={otherPlaceholder}
-          value={customValue}
-          onChange={(e) => handleCustomChange(e.target.value)}
-          autoFocus
-        />
-      )}
-    </div>
+
+          {!showCustomInput ? (
+            <button
+              type="button"
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-left transition-colors border-t",
+                !isPredefined && value && "bg-accent"
+              )}
+              onClick={handleOtherClick}
+            >
+              <PenLine className="h-4 w-4 shrink-0 opacity-70" />
+              {otherLabel}
+            </button>
+          ) : (
+            <div className="border-t p-2 flex gap-2">
+              <Input
+                ref={inputRef}
+                placeholder={otherPlaceholder}
+                value={customValue}
+                onChange={(e) => setCustomValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleCustomSubmit();
+                  }
+                }}
+                className="h-8 text-sm"
+              />
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 px-3 shrink-0"
+                onClick={handleCustomSubmit}
+                disabled={!customValue.trim()}
+              >
+                OK
+              </Button>
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
