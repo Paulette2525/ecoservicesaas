@@ -274,7 +274,7 @@ export default function Demands() {
                 </div>
                 <Select value={d.status} onValueChange={(v) => updateStatus(d.id, v)}>
                   <SelectTrigger className="w-[130px] h-8">
-                    <Badge className={statusColors[d.status]}>{statusLabels[d.status]}</Badge>
+                    <Badge className={statusColors[d.status] || "bg-muted text-muted-foreground"}>{statusLabels[d.status] || d.status}</Badge>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="disponible">Disponible</SelectItem>
