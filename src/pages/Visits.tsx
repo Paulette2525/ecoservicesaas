@@ -320,7 +320,7 @@ export default function Visits() {
                   <td className="p-3">{new Date(v.visit_date).toLocaleDateString("fr-FR")}</td>
                   <td className="p-3">{v.location}</td>
                   <td className="p-3">
-                    <Badge className={statusColors[v.status]}>{statusLabels[v.status]}</Badge>
+                    <Badge className={statusColors[v.status] || "bg-muted text-muted-foreground"}>{statusLabels[v.status] || v.status}</Badge>
                   </td>
                   {isAdmin && (
                     <td className="p-3">
