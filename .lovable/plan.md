@@ -1,23 +1,34 @@
 
 
-# Champ texte intégré dans le sélecteur "Autre"
+# Importer la liste des clients ECO Services
 
-## Modification
+## Analyse du fichier
 
-Refonte du composant `SelectWithOther` pour utiliser un **Popover + Command** (combobox) au lieu d'un Select + Input séparé. Quand l'utilisateur sélectionne "Autre", un champ de saisie apparaît **directement dans le menu déroulant**, pas en dessous.
+Le fichier contient **~700 clients** avec 4 colonnes :
+- **Numéro** (ex: CL0001) — code client interne
+- **Intitulé** (ex: TOUT TRANSIT TRANSPORT) — nom de l'entreprise
+- **Adresse** (ex: BP: 12554 DOUALA) — adresse postale
+- **Ville** (ex: Douala) — souvent vide, parfois dans l'adresse
 
-### Comportement cible
-1. L'utilisateur clique sur le sélecteur → un menu déroulant s'ouvre avec les options + "Autre"
-2. S'il choisit une option prédéfinie → le menu se ferme, la valeur est sélectionnée
-3. S'il choisit "Autre" → un champ texte apparaît **dans le même menu** pour saisir sa valeur personnalisée
-4. Quand il valide (Entrée ou clic sur un bouton "Valider"), le menu se ferme et la valeur custom est utilisée
+## Plan d'implémentation
 
-### Fichier modifié
-- `src/components/SelectWithOther.tsx` : remplacement du pattern `Select` + `Input` par un `Popover` + liste d'options + input intégré
+### 1. Script d'import des données
+- Lire le fichier XLS avec pandas
+- Dédoublonner par Intitulé (quelques doublons possibles comme "CLIENT DIVERS")
+- Mapping vers la table `clients` :
+  - `Intitulé` → `company_name`
+  - `Ville` → `city` (si vide, extraire la ville depuis l'adresse quand c'est évident : DOUALA, YAOUNDE, KRIBI, etc.)
+  - `Adresse` → `notes` (stocker l'adresse complète dans les notes)
+- Les champs `phone`, `email`, `sector` resteront vides (non présents dans le fichier)
+- `commercial_id` sera null (pas d'attribution automatique)
 
-### Pas de changement nécessaire dans les pages
-Les pages `Visits.tsx` et `Demands.tsx` utilisent déjà `SelectWithOther` avec la même interface (`options`, `value`, `onValueChange`). Seul le rendu interne change.
+### 2. Nettoyage des données
+- Filtrer les entrées de type "CLIENT DIVERS", "test", noms de personnes isolées (ex: "EMMANUEL", "SERGE", "HAPPY") — les garder quand même car ce sont des clients réels de l'entreprise
+- Normaliser les villes : "DLA" → "Douala", "YDE" → "Yaounde", "douala" → "Douala"
 
-### Affichage des valeurs custom
-Ajout d'un fallback dans `Visits.tsx` pour les statuts custom (lignes 270, 323, 381) : si le statut n'est pas dans `statusLabels`, afficher la valeur brute avec un badge gris neutre.
+### 3. Aucune modification de schéma
+La table `clients` a déjà toutes les colonnes nécessaires. Pas de migration requise.
+
+### Résultat attendu
+~700 clients importés, consultables et éditables sur la page Clients.
 
