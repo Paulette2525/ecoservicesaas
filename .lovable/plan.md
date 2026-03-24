@@ -1,34 +1,27 @@
 
 
-# Importer la liste des clients ECO Services
+# Afficher l'adresse et le numéro client sur la page Clients
 
-## Analyse du fichier
+## Constat
 
-Le fichier contient **~700 clients** avec 4 colonnes :
-- **Numéro** (ex: CL0001) — code client interne
-- **Intitulé** (ex: TOUT TRANSIT TRANSPORT) — nom de l'entreprise
-- **Adresse** (ex: BP: 12554 DOUALA) — adresse postale
-- **Ville** (ex: Douala) — souvent vide, parfois dans l'adresse
+Lors de l'import, l'adresse (ex: "BP: 12554 DOUALA") a été stockée dans le champ `notes`, et le numéro client (ex: "CL0001") n'a pas été importé du tout. Ces informations n'apparaissent donc pas dans le tableau.
 
-## Plan d'implémentation
+## Plan
 
-### 1. Script d'import des données
-- Lire le fichier XLS avec pandas
-- Dédoublonner par Intitulé (quelques doublons possibles comme "CLIENT DIVERS")
-- Mapping vers la table `clients` :
-  - `Intitulé` → `company_name`
-  - `Ville` → `city` (si vide, extraire la ville depuis l'adresse quand c'est évident : DOUALA, YAOUNDE, KRIBI, etc.)
-  - `Adresse` → `notes` (stocker l'adresse complète dans les notes)
-- Les champs `phone`, `email`, `sector` resteront vides (non présents dans le fichier)
-- `commercial_id` sera null (pas d'attribution automatique)
+### 1. Migration SQL
+- Ajouter 2 colonnes à la table `clients` : `address text` et `client_code text`
+- Migrer les données existantes : copier `notes` → `address` (puisque les notes contiennent actuellement les adresses)
+- Vider `notes` après la copie (ces données n'étaient pas des notes mais des adresses)
 
-### 2. Nettoyage des données
-- Filtrer les entrées de type "CLIENT DIVERS", "test", noms de personnes isolées (ex: "EMMANUEL", "SERGE", "HAPPY") — les garder quand même car ce sont des clients réels de l'entreprise
-- Normaliser les villes : "DLA" → "Douala", "YDE" → "Yaounde", "douala" → "Douala"
+### 2. Réimporter les numéros clients depuis le fichier original
+- Script Python : lire le fichier XLS, faire correspondre chaque `Intitulé` avec le `company_name` en base, et mettre à jour le `client_code` avec la valeur de `Numéro` (CL0001, CL0002, etc.)
 
-### 3. Aucune modification de schéma
-La table `clients` a déjà toutes les colonnes nécessaires. Pas de migration requise.
+### 3. Mettre à jour l'interface (`src/pages/Clients.tsx`)
+- Ajouter `address` et `client_code` dans l'interface `Client`
+- Afficher le code client et l'adresse dans le tableau desktop (nouvelles colonnes)
+- Afficher ces infos dans les cartes mobile
+- Ajouter les champs `address` et `client_code` dans le formulaire de création/édition
 
-### Résultat attendu
-~700 clients importés, consultables et éditables sur la page Clients.
+### Résultat
+Le tableau affichera : Code | Entreprise | Adresse | Ville | Secteur | Téléphone | Email | Commercial
 
