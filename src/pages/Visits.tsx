@@ -65,6 +65,7 @@ export default function Visits() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [clientComboOpen, setClientComboOpen] = useState(false);
+  const [editing, setEditing] = useState<Visit | null>(null);
   const [form, setForm] = useState({
     client_id: "", visit_date: new Date().toISOString().split("T")[0],
     location: "", status: "prise_de_contact" as string, report: "",
