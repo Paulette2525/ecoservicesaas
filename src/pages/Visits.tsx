@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import VisitRecorder from "@/components/VisitRecorder";
+import ReactMarkdown from "react-markdown";
 
 interface Visit {
   id: string;
