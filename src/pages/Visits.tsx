@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SelectWithOther from "@/components/SelectWithOther";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Pencil, MessageSquare, MapPin, Calendar } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, Search, Pencil, MessageSquare, MapPin, Calendar, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import VisitRecorder from "@/components/VisitRecorder";
@@ -62,6 +64,7 @@ export default function Visits() {
   const [profiles, setProfiles] = useState<Map<string, string>>(new Map());
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [clientComboOpen, setClientComboOpen] = useState(false);
   const [editing, setEditing] = useState<Visit | null>(null);
   const [form, setForm] = useState({
     client_id: "", visit_date: new Date().toISOString().split("T")[0],
@@ -172,12 +175,39 @@ export default function Visits() {
             <div className="space-y-4">
               <div>
                 <Label>Client *</Label>
-                <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner un client" /></SelectTrigger>
-                  <SelectContent>
-                    {clientOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={clientComboOpen} className="w-full justify-between font-normal">
+                      {form.client_id
+                        ? clientOptions.find((c) => c.id === form.client_id)?.company_name
+                        : "Rechercher un client..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Tapez le nom du client..." />
+                      <CommandList>
+                        <CommandEmpty>Aucun client trouvé</CommandEmpty>
+                        <CommandGroup>
+                          {clientOptions.map((c) => (
+                            <CommandItem
+                              key={c.id}
+                              value={c.company_name}
+                              onSelect={() => {
+                                setForm({ ...form, client_id: c.id });
+                                setClientComboOpen(false);
+                              }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", form.client_id === c.id ? "opacity-100" : "opacity-0")} />
+                              {c.company_name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><Label>Date</Label><Input type="date" value={form.visit_date} onChange={(e) => setForm({ ...form, visit_date: e.target.value })} /></div>
