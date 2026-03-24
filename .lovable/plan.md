@@ -1,35 +1,37 @@
 
 
-# Optimiser la page Clients + Recherche client sur les Visites
+# Améliorer le rendu de la transcription et du résumé IA
 
-## Problème 1 : Page Clients lente
+## Problèmes identifiés
 
-La page charge les 706 clients d'un coup avec `select("*").order("company_name")`. Avec la limite par défaut de 1 000 lignes, tout arrive mais le rendu de 700+ lignes dans le DOM est lent.
+1. **Le prompt IA utilise du Markdown** (`**gras**`, `1.`, `- puces`) mais l'affichage est en `whitespace-pre-wrap` brut → les `**étoiles**` et le formatage Markdown apparaissent tels quels
+2. **Le prompt génère un format rigide** (5 sections fixes) qui peut ne pas être pertinent si la transcription est courte ou informelle
 
-**Solution : Pagination serveur** (même approche que la page Produits)
+## Solution
 
-### Fichier : `src/pages/Clients.tsx`
-- Ajouter un state `page` (défaut 0), `pageSize` = 50, `totalCount`
-- Remplacer la requête par `.select("*", { count: "exact" }).order("company_name").range(page * 50, (page + 1) * 50 - 1)`
-- Appliquer les filtres de recherche côté serveur avec `.or("company_name.ilike.%search%, city.ilike.%search%, client_code.ilike.%search%, address.ilike.%search%")`
-- Debounce de 300ms sur la recherche
-- Ajouter des boutons Précédent / Suivant en bas du tableau
-- Ajouter un skeleton de chargement pendant les requêtes
-- Reset page à 0 quand la recherche change
+### 1. Améliorer le prompt IA (`supabase/functions/visit-summary/index.ts`)
+- Demander au modèle de **ne pas utiliser de Markdown** (pas de `**`, `###`, etc.)
+- Utiliser des tirets simples pour les listes, pas de mise en gras
+- Rendre les sections optionnelles : ne les inclure que si pertinent
+- Ajouter une instruction pour être plus naturel et contextuel
 
-## Problème 2 : Sélection client dans le formulaire Visites
+### 2. Rendre le Markdown dans l'affichage (`src/pages/Visits.tsx`)
+- Installer `react-markdown` pour parser et afficher correctement le Markdown existant et futur
+- Remplacer les `<div className="whitespace-pre-wrap">` par un composant `<ReactMarkdown>` stylisé pour les onglets Résumé et Rapport
+- Garder `whitespace-pre-wrap font-mono` pour la transcription brute (qui n'est pas du Markdown)
 
-Le `Select` avec 700+ `SelectItem` est lourd et inutilisable. L'utilisateur ne peut pas chercher.
+### 3. Styles pour le Markdown rendu
+- Titres (`h1-h3`) : taille et poids adaptés
+- Listes (`ul`, `ol`) : puces et numérotation avec indentation
+- Gras, italique : rendus correctement
+- Paragraphes : espacement cohérent
 
-**Solution : Combobox avec recherche** (Popover + Command)
+### Fichiers modifiés
+- `supabase/functions/visit-summary/index.ts` : prompt amélioré
+- `src/pages/Visits.tsx` : rendu Markdown pour résumé et rapport
 
-### Fichier : `src/pages/Visits.tsx`
-- Remplacer le `Select` client (lignes ~142-148) par un `Popover` + `Command` (composants déjà disponibles dans le projet)
-- L'utilisateur tape le nom du client, seuls les 30 premiers résultats correspondants s'affichent
-- Filtrage côté client parmi les `clientOptions` déjà chargés (700 éléments c'est OK en mémoire, juste pas OK en DOM)
-- Même pattern que le combobox déjà utilisé sur la page Équivalences
-
-### Résultat attendu
-- Page Clients : chargement < 1s avec navigation par pages de 50
-- Formulaire Visites : sélection client fluide avec recherche textuelle
+### Résultat
+- Les résumés existants avec `**étoiles**` s'afficheront correctement en gras
+- Les nouveaux résumés seront plus naturels et pertinents
+- La transcription reste en format brut (texte mono)
 
