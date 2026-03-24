@@ -436,8 +436,8 @@ export default function Visits() {
                 </TabsList>
                 <TabsContent value="summary" className="mt-3">
                   {detailVisit.summary ? (
-                    <div className="whitespace-pre-wrap text-sm bg-muted/50 rounded-md border p-3 sm:p-4 max-h-96 overflow-y-auto leading-relaxed">
-                      {detailVisit.summary}
+                    <div className="prose prose-sm max-w-none bg-muted/50 rounded-md border p-3 sm:p-4 max-h-96 overflow-y-auto leading-relaxed [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-medium [&_h3]:mt-2 [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1 [&_li]:my-0.5 [&_p]:my-1.5 [&_strong]:font-semibold">
+                      <ReactMarkdown>{detailVisit.summary}</ReactMarkdown>
                     </div>
                   ) : (
                     <p className="text-muted-foreground text-sm text-center py-6">Aucun résumé disponible</p>
@@ -454,8 +454,8 @@ export default function Visits() {
                 </TabsContent>
                 <TabsContent value="report" className="mt-3">
                   {detailVisit.report ? (
-                    <div className="whitespace-pre-wrap text-sm bg-muted/50 rounded-md border p-3 sm:p-4 max-h-96 overflow-y-auto leading-relaxed">
-                      {detailVisit.report}
+                    <div className="prose prose-sm max-w-none bg-muted/50 rounded-md border p-3 sm:p-4 max-h-96 overflow-y-auto leading-relaxed [&_h1]:text-base [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-1 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-medium [&_h3]:mt-2 [&_h3]:mb-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1 [&_li]:my-0.5 [&_p]:my-1.5 [&_strong]:font-semibold">
+                      <ReactMarkdown>{detailVisit.report}</ReactMarkdown>
                     </div>
                   ) : (
                     <p className="text-muted-foreground text-sm text-center py-6">Aucun rapport disponible</p>
