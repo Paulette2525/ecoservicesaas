@@ -67,7 +67,9 @@ export type Database = {
       }
       clients: {
         Row: {
+          address: string | null
           city: string | null
+          client_code: string | null
           commercial_id: string | null
           company_name: string
           created_at: string
@@ -79,7 +81,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          address?: string | null
           city?: string | null
+          client_code?: string | null
           commercial_id?: string | null
           company_name: string
           created_at?: string
@@ -91,7 +95,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          address?: string | null
           city?: string | null
+          client_code?: string | null
           commercial_id?: string | null
           company_name?: string
           created_at?: string
