@@ -174,12 +174,39 @@ export default function Visits() {
             <div className="space-y-4">
               <div>
                 <Label>Client *</Label>
-                <Select value={form.client_id} onValueChange={(v) => setForm({ ...form, client_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Sélectionner un client" /></SelectTrigger>
-                  <SelectContent>
-                    {clientOptions.map((c) => <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Popover open={clientComboOpen} onOpenChange={setClientComboOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={clientComboOpen} className="w-full justify-between font-normal">
+                      {form.client_id
+                        ? clientOptions.find((c) => c.id === form.client_id)?.company_name
+                        : "Rechercher un client..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Tapez le nom du client..." />
+                      <CommandList>
+                        <CommandEmpty>Aucun client trouvé</CommandEmpty>
+                        <CommandGroup>
+                          {clientOptions.map((c) => (
+                            <CommandItem
+                              key={c.id}
+                              value={c.company_name}
+                              onSelect={() => {
+                                setForm({ ...form, client_id: c.id });
+                                setClientComboOpen(false);
+                              }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", form.client_id === c.id ? "opacity-100" : "opacity-0")} />
+                              {c.company_name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div><Label>Date</Label><Input type="date" value={form.visit_date} onChange={(e) => setForm({ ...form, visit_date: e.target.value })} /></div>
