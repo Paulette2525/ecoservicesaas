@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Search, Pencil, Phone, Mail, Building2, MapPin, Hash } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Plus, Search, Pencil, Phone, Mail, Building2, MapPin, Hash, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -22,29 +23,63 @@ interface Client {
   client_code: string | null;
 }
 
+const PAGE_SIZE = 50;
+
 export default function Clients() {
   const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
   const [form, setForm] = useState({ company_name: "", city: "", sector: "", phone: "", email: "", notes: "", address: "", client_code: "" });
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
-    const [clientsRes, profilesRes] = await Promise.all([
-      supabase.from("clients").select("*").order("company_name"),
-      supabase.from("profiles").select("user_id, full_name"),
-    ]);
-    if (clientsRes.data) setClients(clientsRes.data as Client[]);
-    if (profilesRes.data) {
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const fetchProfiles = useCallback(async () => {
+    const { data } = await supabase.from("profiles").select("user_id, full_name");
+    if (data) {
       const map: Record<string, string> = {};
-      profilesRes.data.forEach((p) => { map[p.user_id] = p.full_name; });
+      data.forEach((p) => { map[p.user_id] = p.full_name; });
       setProfiles(map);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchData(); }, []);
+  const fetchClients = useCallback(async () => {
+    setLoading(true);
+    let query = supabase
+      .from("clients")
+      .select("*", { count: "exact" })
+      .order("company_name");
+
+    if (debouncedSearch) {
+      const s = `%${debouncedSearch}%`;
+      query = query.or(`company_name.ilike.${s},city.ilike.${s},client_code.ilike.${s},address.ilike.${s}`);
+    }
+
+    query = query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+    const { data, count } = await query;
+    if (data) setClients(data as Client[]);
+    if (count !== null) setTotalCount(count);
+    setLoading(false);
+  }, [debouncedSearch, page]);
+
+  useEffect(() => { fetchProfiles(); }, [fetchProfiles]);
+  useEffect(() => { fetchClients(); }, [fetchClients]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const getCommercialName = (id: string | null) => {
     if (!id) return "—";
@@ -78,7 +113,7 @@ export default function Clients() {
     setOpen(false);
     setEditing(null);
     setForm({ company_name: "", city: "", sector: "", phone: "", email: "", notes: "", address: "", client_code: "" });
-    fetchData();
+    fetchClients();
   };
 
   const openEdit = (c: Client) => {
@@ -102,12 +137,33 @@ export default function Clients() {
     setOpen(true);
   };
 
-  const filtered = clients.filter((c) =>
-    c.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    (c.city?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-    (c.client_code?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
-    (c.address?.toLowerCase().includes(search.toLowerCase()) ?? false)
+  const SkeletonRows = () => (
+    <>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <tr key={i} className="border-b">
+          {Array.from({ length: 9 }).map((_, j) => (
+            <td key={j} className="p-3"><Skeleton className="h-4 w-full" /></td>
+          ))}
+        </tr>
+      ))}
+    </>
   );
+
+  const Pagination = () => totalPages > 1 ? (
+    <div className="flex items-center justify-between pt-4">
+      <p className="text-sm text-muted-foreground">{totalCount} client{totalCount > 1 ? "s" : ""} — Page {page + 1}/{totalPages}</p>
+      <div className="flex gap-2">
+        <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+          <ChevronLeft className="h-4 w-4 mr-1" />Précédent
+        </Button>
+        <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+          Suivant<ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+    </div>
+  ) : totalCount > 0 ? (
+    <p className="text-sm text-muted-foreground pt-4">{totalCount} client{totalCount > 1 ? "s" : ""}</p>
+  ) : null;
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -155,9 +211,17 @@ export default function Clients() {
 
       {/* Mobile: Card list */}
       <div className="space-y-3 sm:hidden">
-        {filtered.length === 0 ? (
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}><CardContent className="p-4 space-y-2">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-4 w-2/3" />
+            </CardContent></Card>
+          ))
+        ) : clients.length === 0 ? (
           <p className="text-center text-muted-foreground py-8">Aucun client trouvé</p>
-        ) : filtered.map((c) => (
+        ) : clients.map((c) => (
           <Card key={c.id} className="overflow-hidden">
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-2">
@@ -228,9 +292,9 @@ export default function Clients() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading ? <SkeletonRows /> : clients.length === 0 ? (
                 <tr><td colSpan={9} className="text-center text-muted-foreground py-8">Aucun client trouvé</td></tr>
-              ) : filtered.map((c) => (
+              ) : clients.map((c) => (
                 <tr key={c.id} className="border-b last:border-0">
                   <td className="p-3 text-muted-foreground">{c.client_code || "—"}</td>
                   <td className="p-3 font-medium">{c.company_name}</td>
@@ -249,6 +313,8 @@ export default function Clients() {
           </table>
         </CardContent>
       </Card>
+
+      <Pagination />
     </div>
   );
 }
