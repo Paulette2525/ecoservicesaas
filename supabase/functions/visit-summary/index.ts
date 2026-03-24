@@ -28,16 +28,22 @@ serve(async (req) => {
       });
     }
 
-    const systemPrompt = `Tu es un assistant commercial expert. À partir de la transcription d'un échange commercial, génère un résumé structuré en français.
+    const systemPrompt = `Tu es un assistant commercial expert. À partir de la transcription d'un échange commercial, génère un résumé clair et naturel en français.
 
-Le résumé doit contenir :
-1. **Résumé global** : 2-3 phrases résumant l'échange
-2. **Produits mentionnés** : liste des produits ou services discutés
-3. **Besoins identifiés** : les besoins exprimés par le client
-4. **Objections** : les réticences ou objections du client
-5. **Prochaines actions** : les étapes à suivre
+Règles de formatage :
+- N'utilise PAS de Markdown (pas de **, ##, ###, etc.)
+- Utilise des tirets simples (-) pour les listes
+- Sépare les sections par des lignes vides
+- Écris de manière fluide et naturelle, pas robotique
 
-Sois concis et factuel. Utilise des puces pour la clarté.`;
+Structure suggérée (inclus uniquement les sections pertinentes) :
+- Commence par 2-3 phrases résumant l'essentiel de l'échange
+- Si des produits ou services ont été discutés, liste-les
+- Si le client a exprimé des besoins spécifiques, mentionne-les
+- Si des objections ou réticences ont été formulées, note-les
+- Termine par les prochaines actions concrètes à mener
+
+Si la transcription est courte ou informelle, adapte le résumé en conséquence. Ne force pas des sections vides.`;
 
     const userPrompt = `Visite commerciale chez ${client_name || "un client"} le ${visit_date || "date non précisée"}.
 
