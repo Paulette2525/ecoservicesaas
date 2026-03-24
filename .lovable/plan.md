@@ -1,27 +1,35 @@
 
 
-# Afficher l'adresse et le numéro client sur la page Clients
+# Optimiser la page Clients + Recherche client sur les Visites
 
-## Constat
+## Problème 1 : Page Clients lente
 
-Lors de l'import, l'adresse (ex: "BP: 12554 DOUALA") a été stockée dans le champ `notes`, et le numéro client (ex: "CL0001") n'a pas été importé du tout. Ces informations n'apparaissent donc pas dans le tableau.
+La page charge les 706 clients d'un coup avec `select("*").order("company_name")`. Avec la limite par défaut de 1 000 lignes, tout arrive mais le rendu de 700+ lignes dans le DOM est lent.
 
-## Plan
+**Solution : Pagination serveur** (même approche que la page Produits)
 
-### 1. Migration SQL
-- Ajouter 2 colonnes à la table `clients` : `address text` et `client_code text`
-- Migrer les données existantes : copier `notes` → `address` (puisque les notes contiennent actuellement les adresses)
-- Vider `notes` après la copie (ces données n'étaient pas des notes mais des adresses)
+### Fichier : `src/pages/Clients.tsx`
+- Ajouter un state `page` (défaut 0), `pageSize` = 50, `totalCount`
+- Remplacer la requête par `.select("*", { count: "exact" }).order("company_name").range(page * 50, (page + 1) * 50 - 1)`
+- Appliquer les filtres de recherche côté serveur avec `.or("company_name.ilike.%search%, city.ilike.%search%, client_code.ilike.%search%, address.ilike.%search%")`
+- Debounce de 300ms sur la recherche
+- Ajouter des boutons Précédent / Suivant en bas du tableau
+- Ajouter un skeleton de chargement pendant les requêtes
+- Reset page à 0 quand la recherche change
 
-### 2. Réimporter les numéros clients depuis le fichier original
-- Script Python : lire le fichier XLS, faire correspondre chaque `Intitulé` avec le `company_name` en base, et mettre à jour le `client_code` avec la valeur de `Numéro` (CL0001, CL0002, etc.)
+## Problème 2 : Sélection client dans le formulaire Visites
 
-### 3. Mettre à jour l'interface (`src/pages/Clients.tsx`)
-- Ajouter `address` et `client_code` dans l'interface `Client`
-- Afficher le code client et l'adresse dans le tableau desktop (nouvelles colonnes)
-- Afficher ces infos dans les cartes mobile
-- Ajouter les champs `address` et `client_code` dans le formulaire de création/édition
+Le `Select` avec 700+ `SelectItem` est lourd et inutilisable. L'utilisateur ne peut pas chercher.
 
-### Résultat
-Le tableau affichera : Code | Entreprise | Adresse | Ville | Secteur | Téléphone | Email | Commercial
+**Solution : Combobox avec recherche** (Popover + Command)
+
+### Fichier : `src/pages/Visits.tsx`
+- Remplacer le `Select` client (lignes ~142-148) par un `Popover` + `Command` (composants déjà disponibles dans le projet)
+- L'utilisateur tape le nom du client, seuls les 30 premiers résultats correspondants s'affichent
+- Filtrage côté client parmi les `clientOptions` déjà chargés (700 éléments c'est OK en mémoire, juste pas OK en DOM)
+- Même pattern que le combobox déjà utilisé sur la page Équivalences
+
+### Résultat attendu
+- Page Clients : chargement < 1s avec navigation par pages de 50
+- Formulaire Visites : sélection client fluide avec recherche textuelle
 
