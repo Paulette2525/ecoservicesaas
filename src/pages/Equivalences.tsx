@@ -2,13 +2,11 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, X, Search, ChevronsUpDown, Check, Package, AlertTriangle } from "lucide-react";
+import { X, Search, ChevronsUpDown, Check, Package, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -136,12 +134,6 @@ export default function Equivalences() {
   const [products, setProducts] = useState<Product[]>([]);
   const [equivalences, setEquivalences] = useState<Equivalence[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
-  const [productA, setProductA] = useState("");
-  const [productB, setProductB] = useState("");
-  const [equivType, setEquivType] = useState<EquivType>("strict");
-  const [searchEquiv, setSearchEquiv] = useState("");
-  const [supplierFilter, setSupplierFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
 
   const fetchData = async () => {
     const [p, e] = await Promise.all([
@@ -154,13 +146,8 @@ export default function Equivalences() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const suppliers = useMemo(() =>
-    [...new Set(products.map(p => p.supplier).filter(Boolean))] as string[]
-  , [products]);
-
   const selectedProductData = products.find(p => p.id === selectedProduct);
 
-  // Get equivalents for the selected product, grouped by type
   const productEquivalents = useMemo(() => {
     if (!selectedProduct) return [];
     return equivalences.filter(e =>
@@ -168,7 +155,6 @@ export default function Equivalences() {
     );
   }, [equivalences, selectedProduct]);
 
-  // Deduplicate and group
   const groupedEquivalents = useMemo(() => {
     const seen = new Set<string>();
     const groups: Record<EquivType, { equiv: Equivalence; product: Product }[]> = {
@@ -191,21 +177,6 @@ export default function Equivalences() {
 
   const hasAnyEquivalent = EQUIV_TYPE_ORDER.some(t => groupedEquivalents[t].length > 0);
 
-  const addEquivalence = async () => {
-    if (!productA || !productB || productA === productB) {
-      toast.error("Sélectionnez deux produits différents");
-      return;
-    }
-    const { error } = await supabase.from("product_equivalences").insert([
-      { product_id: productA, equivalent_id: productB, equivalence_type: equivType },
-      { product_id: productB, equivalent_id: productA, equivalence_type: equivType },
-    ]);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Équivalence ajoutée");
-    setProductA(""); setProductB(""); setEquivType("strict");
-    fetchData();
-  };
-
   const removeEquivalence = async (e: Equivalence) => {
     await supabase.from("product_equivalences").delete().or(
       `and(product_id.eq.${e.product_id},equivalent_id.eq.${e.equivalent_id}),and(product_id.eq.${e.equivalent_id},equivalent_id.eq.${e.product_id})`
@@ -214,40 +185,10 @@ export default function Equivalences() {
     fetchData();
   };
 
-  const getName = (id: string) => products.find(p => p.id === id);
-
-  // All equivalences list (deduplicated)
-  const seen = new Set<string>();
-  const uniqueEquiv = equivalences.filter(e => {
-    const key = [e.product_id, e.equivalent_id].sort().join("-");
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  const filteredEquiv = useMemo(() => {
-    return uniqueEquiv.filter(e => {
-      const a = getName(e.product_id);
-      const b = getName(e.equivalent_id);
-      if (supplierFilter !== "all") {
-        if (a?.supplier !== supplierFilter && b?.supplier !== supplierFilter) return false;
-      }
-      if (typeFilter !== "all" && e.equivalence_type !== typeFilter) return false;
-      if (searchEquiv) {
-        const q = searchEquiv.toLowerCase();
-        const match = [a?.reference, a?.name, a?.supplier, b?.reference, b?.name, b?.supplier]
-          .some(v => v?.toLowerCase().includes(q));
-        if (!match) return false;
-      }
-      return true;
-    });
-  }, [uniqueEquiv, supplierFilter, typeFilter, searchEquiv, products]);
-
   return (
     <div className="space-y-4 sm:space-y-6">
       <h1 className="text-xl sm:text-2xl font-bold">Équivalences produits</h1>
 
-      {/* Recherche produit */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
@@ -262,7 +203,6 @@ export default function Equivalences() {
 
           {selectedProductData && (
             <div className="mt-4 space-y-4">
-              {/* Fiche produit */}
               <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border bg-muted/30">
                 <Badge variant="outline" className="font-mono">{selectedProductData.reference}</Badge>
                 <span className="font-medium">{selectedProductData.name}</span>
@@ -272,7 +212,6 @@ export default function Equivalences() {
                 <StockBadge stock={selectedProductData.stock_available} />
               </div>
 
-              {/* Équivalents groupés */}
               {hasAnyEquivalent ? (
                 <div className="space-y-3">
                   {EQUIV_TYPE_ORDER.map(type => {
@@ -306,7 +245,6 @@ export default function Equivalences() {
           )}
         </CardContent>
       </Card>
-
     </div>
   );
 }
