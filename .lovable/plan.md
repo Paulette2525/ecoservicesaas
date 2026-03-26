@@ -1,37 +1,61 @@
 
 
-# Améliorer le rendu de la transcription et du résumé IA
+# Optimiser la page Équivalences — Types et stock visible
 
-## Problèmes identifiés
+## Objectif
 
-1. **Le prompt IA utilise du Markdown** (`**gras**`, `1.`, `- puces`) mais l'affichage est en `whitespace-pre-wrap` brut → les `**étoiles**` et le formatage Markdown apparaissent tels quels
-2. **Le prompt génère un format rigide** (5 sections fixes) qui peut ne pas être pertinent si la transcription est courte ou informelle
+Permettre au commercial de chercher un produit, voir immédiatement s'il est en rupture, et identifier le bon remplacement selon le type d'équivalence (strict, avec joint "E", sans joint, autre laboratoire).
 
-## Solution
+## Modifications
 
-### 1. Améliorer le prompt IA (`supabase/functions/visit-summary/index.ts`)
-- Demander au modèle de **ne pas utiliser de Markdown** (pas de `**`, `###`, etc.)
-- Utiliser des tirets simples pour les listes, pas de mise en gras
-- Rendre les sections optionnelles : ne les inclure que si pertinent
-- Ajouter une instruction pour être plus naturel et contextuel
+### 1. Migration SQL — Ajouter le type d'équivalence
 
-### 2. Rendre le Markdown dans l'affichage (`src/pages/Visits.tsx`)
-- Installer `react-markdown` pour parser et afficher correctement le Markdown existant et futur
-- Remplacer les `<div className="whitespace-pre-wrap">` par un composant `<ReactMarkdown>` stylisé pour les onglets Résumé et Rapport
-- Garder `whitespace-pre-wrap font-mono` pour la transcription brute (qui n'est pas du Markdown)
+Ajouter une colonne `equivalence_type` à la table `product_equivalences` :
 
-### 3. Styles pour le Markdown rendu
-- Titres (`h1-h3`) : taille et poids adaptés
-- Listes (`ul`, `ol`) : puces et numérotation avec indentation
-- Gras, italique : rendus correctement
-- Paragraphes : espacement cohérent
+```sql
+CREATE TYPE equivalence_type AS ENUM ('strict', 'avec_joint', 'sans_joint', 'autre_labo');
+ALTER TABLE product_equivalences ADD COLUMN equivalence_type equivalence_type NOT NULL DEFAULT 'strict';
+```
+
+Les équivalences existantes seront marquées comme "strict" par défaut.
+
+### 2. Refonte de la page (`src/pages/Equivalences.tsx`)
+
+**Nouvelle UX : recherche par produit**
+- En haut : un combobox unique "Rechercher un produit" (réutilise le composant existant)
+- Quand un produit est sélectionné, afficher sa fiche résumée : référence, nom, fournisseur, **stock** (avec badge rouge si stock = 0)
+- En dessous, afficher ses équivalents **groupés par type** dans cet ordre :
+  1. **Strict** — même produit exact, badge vert
+  2. **Avec joint (E)** — badge bleu
+  3. **Sans joint** — badge gris
+  4. **Autre laboratoire** — badge orange avec le nom du fournisseur
+- Chaque équivalent affiche : référence, nom, fournisseur, **stock disponible** (vert si > 0, rouge si = 0)
+
+**Formulaire d'ajout d'équivalence**
+- Garder les 2 combobox Produit A / Produit B
+- Ajouter un `Select` pour choisir le type : Strict, Avec joint (E), Sans joint, Autre laboratoire
+- Le type est enregistré dans la nouvelle colonne
+
+**Liste existante**
+- Conserver la liste des équivalences en bas mais ajouter un badge coloré pour le type
+- Filtrage par type en plus du filtre fournisseur existant
+
+### 3. Chargement des données
+
+Modifier la requête produits pour inclure `stock_available` :
+```typescript
+supabase.from("products").select("id, reference, name, supplier, stock_available")
+```
+
+Modifier la requête équivalences pour inclure `equivalence_type` :
+```typescript
+supabase.from("product_equivalences").select("*")
+```
 
 ### Fichiers modifiés
-- `supabase/functions/visit-summary/index.ts` : prompt amélioré
-- `src/pages/Visits.tsx` : rendu Markdown pour résumé et rapport
+- `supabase/migrations/` — nouvelle migration pour `equivalence_type`
+- `src/pages/Equivalences.tsx` — refonte complète de la page
 
-### Résultat
-- Les résumés existants avec `**étoiles**` s'afficheront correctement en gras
-- Les nouveaux résumés seront plus naturels et pertinents
-- La transcription reste en format brut (texte mono)
+### Résultat attendu
+Le commercial tape le nom d'un produit → voit son stock → voit immédiatement les alternatives classées par priorité (strict d'abord, puis variantes).
 
