@@ -113,18 +113,21 @@ export type Database = {
       product_equivalences: {
         Row: {
           created_at: string
+          equivalence_type: Database["public"]["Enums"]["equivalence_type"]
           equivalent_id: string
           id: string
           product_id: string
         }
         Insert: {
           created_at?: string
+          equivalence_type?: Database["public"]["Enums"]["equivalence_type"]
           equivalent_id: string
           id?: string
           product_id: string
         }
         Update: {
           created_at?: string
+          equivalence_type?: Database["public"]["Enums"]["equivalence_type"]
           equivalent_id?: string
           id?: string
           product_id?: string
@@ -369,6 +372,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "manager" | "commercial"
       demand_status: "disponible" | "en_rupture" | "en_commande"
+      equivalence_type: "strict" | "avec_joint" | "sans_joint" | "autre_labo"
       urgency_level: "faible" | "moyenne" | "haute"
       visit_status: "opportunite" | "prise_de_contact" | "commande_probable"
     }
@@ -500,6 +504,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "manager", "commercial"],
       demand_status: ["disponible", "en_rupture", "en_commande"],
+      equivalence_type: ["strict", "avec_joint", "sans_joint", "autre_labo"],
       urgency_level: ["faible", "moyenne", "haute"],
       visit_status: ["opportunite", "prise_de_contact", "commande_probable"],
     },
