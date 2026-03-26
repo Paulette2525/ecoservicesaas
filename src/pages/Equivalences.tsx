@@ -8,12 +8,35 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, X, Search, ChevronsUpDown, Check } from "lucide-react";
+import { Plus, X, Search, ChevronsUpDown, Check, Package, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-interface Product { id: string; reference: string; name: string; supplier: string | null; }
-interface Equivalence { id: string; product_id: string; equivalent_id: string; }
+interface Product {
+  id: string;
+  reference: string;
+  name: string;
+  supplier: string | null;
+  stock_available: number;
+}
+
+type EquivType = "strict" | "avec_joint" | "sans_joint" | "autre_labo";
+
+interface Equivalence {
+  id: string;
+  product_id: string;
+  equivalent_id: string;
+  equivalence_type: EquivType;
+}
+
+const EQUIV_TYPE_CONFIG: Record<EquivType, { label: string; color: string; badgeClass: string }> = {
+  strict: { label: "Strict", color: "bg-green-100 text-green-800 border-green-300", badgeClass: "border-green-300 bg-green-50 text-green-700" },
+  avec_joint: { label: "Avec joint (E)", color: "bg-blue-100 text-blue-800 border-blue-300", badgeClass: "border-blue-300 bg-blue-50 text-blue-700" },
+  sans_joint: { label: "Sans joint", color: "bg-muted text-muted-foreground", badgeClass: "border-border bg-muted text-muted-foreground" },
+  autre_labo: { label: "Autre labo", color: "bg-orange-100 text-orange-800 border-orange-300", badgeClass: "border-orange-300 bg-orange-50 text-orange-700" },
+};
+
+const EQUIV_TYPE_ORDER: EquivType[] = ["strict", "avec_joint", "sans_joint", "autre_labo"];
 
 function ProductCombobox({ products, value, onChange, label }: {
   products: Product[]; value: string; onChange: (v: string) => void; label: string;
@@ -72,21 +95,61 @@ function ProductCombobox({ products, value, onChange, label }: {
   );
 }
 
+function StockBadge({ stock }: { stock: number }) {
+  if (stock <= 0) {
+    return (
+      <Badge className="bg-destructive/10 text-destructive border-destructive/30 gap-1">
+        <AlertTriangle className="h-3 w-3" />
+        Rupture
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-green-50 text-green-700 border-green-300 gap-1">
+      <Package className="h-3 w-3" />
+      {stock} en stock
+    </Badge>
+  );
+}
+
+function EquivalentCard({ product, type, onRemove }: {
+  product: Product; type: EquivType; onRemove: () => void;
+}) {
+  const config = EQUIV_TYPE_CONFIG[type];
+  return (
+    <div className="flex items-center justify-between p-3 rounded-lg border gap-3">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <Badge className={cn("shrink-0 text-[10px]", config.badgeClass)}>{config.label}</Badge>
+        <span className="font-mono text-xs shrink-0">{product.reference}</span>
+        <span className="truncate text-sm">{product.name}</span>
+        {product.supplier && <Badge variant="secondary" className="shrink-0 text-[10px]">{product.supplier}</Badge>}
+        <StockBadge stock={product.stock_available} />
+      </div>
+      <Button variant="ghost" size="icon" className="shrink-0" onClick={onRemove}>
+        <X className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 export default function Equivalences() {
   const [products, setProducts] = useState<Product[]>([]);
   const [equivalences, setEquivalences] = useState<Equivalence[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState("");
   const [productA, setProductA] = useState("");
   const [productB, setProductB] = useState("");
+  const [equivType, setEquivType] = useState<EquivType>("strict");
   const [searchEquiv, setSearchEquiv] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
 
   const fetchData = async () => {
     const [p, e] = await Promise.all([
-      supabase.from("products").select("id, reference, name, supplier").order("reference"),
+      supabase.from("products").select("id, reference, name, supplier, stock_available").order("reference"),
       supabase.from("product_equivalences").select("*"),
     ]);
     if (p.data) setProducts(p.data);
-    if (e.data) setEquivalences(e.data);
+    if (e.data) setEquivalences(e.data as Equivalence[]);
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -95,15 +158,51 @@ export default function Equivalences() {
     [...new Set(products.map(p => p.supplier).filter(Boolean))] as string[]
   , [products]);
 
+  const selectedProductData = products.find(p => p.id === selectedProduct);
+
+  // Get equivalents for the selected product, grouped by type
+  const productEquivalents = useMemo(() => {
+    if (!selectedProduct) return [];
+    return equivalences.filter(e =>
+      e.product_id === selectedProduct || e.equivalent_id === selectedProduct
+    );
+  }, [equivalences, selectedProduct]);
+
+  // Deduplicate and group
+  const groupedEquivalents = useMemo(() => {
+    const seen = new Set<string>();
+    const groups: Record<EquivType, { equiv: Equivalence; product: Product }[]> = {
+      strict: [], avec_joint: [], sans_joint: [], autre_labo: [],
+    };
+
+    for (const e of productEquivalents) {
+      const key = [e.product_id, e.equivalent_id].sort().join("-");
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const otherId = e.product_id === selectedProduct ? e.equivalent_id : e.product_id;
+      const otherProduct = products.find(p => p.id === otherId);
+      if (otherProduct) {
+        groups[e.equivalence_type].push({ equiv: e, product: otherProduct });
+      }
+    }
+    return groups;
+  }, [productEquivalents, selectedProduct, products]);
+
+  const hasAnyEquivalent = EQUIV_TYPE_ORDER.some(t => groupedEquivalents[t].length > 0);
+
   const addEquivalence = async () => {
-    if (!productA || !productB || productA === productB) { toast.error("Sélectionnez deux produits différents"); return; }
+    if (!productA || !productB || productA === productB) {
+      toast.error("Sélectionnez deux produits différents");
+      return;
+    }
     const { error } = await supabase.from("product_equivalences").insert([
-      { product_id: productA, equivalent_id: productB },
-      { product_id: productB, equivalent_id: productA },
+      { product_id: productA, equivalent_id: productB, equivalence_type: equivType },
+      { product_id: productB, equivalent_id: productA, equivalence_type: equivType },
     ]);
     if (error) { toast.error(error.message); return; }
     toast.success("Équivalence ajoutée");
-    setProductA(""); setProductB("");
+    setProductA(""); setProductB(""); setEquivType("strict");
     fetchData();
   };
 
@@ -117,6 +216,7 @@ export default function Equivalences() {
 
   const getName = (id: string) => products.find(p => p.id === id);
 
+  // All equivalences list (deduplicated)
   const seen = new Set<string>();
   const uniqueEquiv = equivalences.filter(e => {
     const key = [e.product_id, e.equivalent_id].sort().join("-");
@@ -132,6 +232,7 @@ export default function Equivalences() {
       if (supplierFilter !== "all") {
         if (a?.supplier !== supplierFilter && b?.supplier !== supplierFilter) return false;
       }
+      if (typeFilter !== "all" && e.equivalence_type !== typeFilter) return false;
       if (searchEquiv) {
         const q = searchEquiv.toLowerCase();
         const match = [a?.reference, a?.name, a?.supplier, b?.reference, b?.name, b?.supplier]
@@ -140,31 +241,119 @@ export default function Equivalences() {
       }
       return true;
     });
-  }, [uniqueEquiv, supplierFilter, searchEquiv, products]);
+  }, [uniqueEquiv, supplierFilter, typeFilter, searchEquiv, products]);
 
   return (
     <div className="space-y-4 sm:space-y-6">
       <h1 className="text-xl sm:text-2xl font-bold">Équivalences produits</h1>
 
+      {/* Recherche produit */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Rechercher un produit
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-w-xl">
+            <ProductCombobox products={products} value={selectedProduct} onChange={setSelectedProduct} label="Produit" />
+          </div>
+
+          {selectedProductData && (
+            <div className="mt-4 space-y-4">
+              {/* Fiche produit */}
+              <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border bg-muted/30">
+                <Badge variant="outline" className="font-mono">{selectedProductData.reference}</Badge>
+                <span className="font-medium">{selectedProductData.name}</span>
+                {selectedProductData.supplier && (
+                  <Badge variant="secondary">{selectedProductData.supplier}</Badge>
+                )}
+                <StockBadge stock={selectedProductData.stock_available} />
+              </div>
+
+              {/* Équivalents groupés */}
+              {hasAnyEquivalent ? (
+                <div className="space-y-3">
+                  {EQUIV_TYPE_ORDER.map(type => {
+                    const items = groupedEquivalents[type];
+                    if (items.length === 0) return null;
+                    const config = EQUIV_TYPE_CONFIG[type];
+                    return (
+                      <div key={type}>
+                        <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                          <span className={cn("inline-block w-3 h-3 rounded-full border", config.color)} />
+                          {config.label} ({items.length})
+                        </h3>
+                        <div className="space-y-1.5">
+                          {items.map(({ equiv, product }) => (
+                            <EquivalentCard
+                              key={equiv.id}
+                              product={product}
+                              type={type}
+                              onRemove={() => removeEquivalence(equiv)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">Aucune équivalence pour ce produit</p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Ajouter une équivalence */}
       <Card>
         <CardHeader><CardTitle className="text-base sm:text-lg">Ajouter une équivalence</CardTitle></CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
             <ProductCombobox products={products} value={productA} onChange={setProductA} label="Produit A" />
             <ProductCombobox products={products} value={productB} onChange={setProductB} label="Produit B" />
-            <Button onClick={addEquivalence} className="w-full sm:w-auto shrink-0"><Plus className="h-4 w-4 mr-2" />Ajouter</Button>
+            <div className="w-full sm:w-[200px] shrink-0">
+              <Label>Type</Label>
+              <Select value={equivType} onValueChange={(v) => setEquivType(v as EquivType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {EQUIV_TYPE_ORDER.map(t => (
+                    <SelectItem key={t} value={t}>{EQUIV_TYPE_CONFIG[t].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={addEquivalence} className="w-full sm:w-auto shrink-0">
+              <Plus className="h-4 w-4 mr-2" />Ajouter
+            </Button>
           </div>
         </CardContent>
       </Card>
 
+      {/* Liste existante */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Équivalences existantes ({filteredEquiv.length})</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Toutes les équivalences ({filteredEquiv.length})</CardTitle>
           <div className="flex flex-col sm:flex-row gap-3 mt-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Rechercher..." value={searchEquiv} onChange={e => setSearchEquiv(e.target.value)} className="pl-10" />
             </div>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                {EQUIV_TYPE_ORDER.map(t => (
+                  <SelectItem key={t} value={t}>{EQUIV_TYPE_CONFIG[t].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={supplierFilter} onValueChange={setSupplierFilter}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Fournisseur" />
@@ -184,9 +373,11 @@ export default function Equivalences() {
               {filteredEquiv.map(e => {
                 const a = getName(e.product_id);
                 const b = getName(e.equivalent_id);
+                const config = EQUIV_TYPE_CONFIG[e.equivalence_type];
                 return (
                   <div key={e.id} className="flex items-center justify-between p-3 rounded-lg border gap-2">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
+                      <Badge className={cn("shrink-0 text-[10px] w-fit", config.badgeClass)}>{config.label}</Badge>
                       <div className="flex items-center gap-2 min-w-0">
                         <Badge variant="outline" className="shrink-0">{a?.reference}</Badge>
                         <span className="truncate text-sm">{a?.name}</span>
@@ -200,7 +391,9 @@ export default function Equivalences() {
                         {b?.supplier && <Badge variant="secondary" className="shrink-0 text-[10px]">{b.supplier}</Badge>}
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeEquivalence(e)}><X className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeEquivalence(e)}>
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
                 );
               })}
