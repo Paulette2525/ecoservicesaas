@@ -2,13 +2,11 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Plus, X, Search, ChevronsUpDown, Check, Package, AlertTriangle } from "lucide-react";
+import { X, Search, ChevronsUpDown, Check, Package, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -136,12 +134,6 @@ export default function Equivalences() {
   const [products, setProducts] = useState<Product[]>([]);
   const [equivalences, setEquivalences] = useState<Equivalence[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
-  const [productA, setProductA] = useState("");
-  const [productB, setProductB] = useState("");
-  const [equivType, setEquivType] = useState<EquivType>("strict");
-  const [searchEquiv, setSearchEquiv] = useState("");
-  const [supplierFilter, setSupplierFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
 
   const fetchData = async () => {
     const [p, e] = await Promise.all([
@@ -154,13 +146,8 @@ export default function Equivalences() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const suppliers = useMemo(() =>
-    [...new Set(products.map(p => p.supplier).filter(Boolean))] as string[]
-  , [products]);
-
   const selectedProductData = products.find(p => p.id === selectedProduct);
 
-  // Get equivalents for the selected product, grouped by type
   const productEquivalents = useMemo(() => {
     if (!selectedProduct) return [];
     return equivalences.filter(e =>
@@ -168,7 +155,6 @@ export default function Equivalences() {
     );
   }, [equivalences, selectedProduct]);
 
-  // Deduplicate and group
   const groupedEquivalents = useMemo(() => {
     const seen = new Set<string>();
     const groups: Record<EquivType, { equiv: Equivalence; product: Product }[]> = {
@@ -191,21 +177,6 @@ export default function Equivalences() {
 
   const hasAnyEquivalent = EQUIV_TYPE_ORDER.some(t => groupedEquivalents[t].length > 0);
 
-  const addEquivalence = async () => {
-    if (!productA || !productB || productA === productB) {
-      toast.error("Sélectionnez deux produits différents");
-      return;
-    }
-    const { error } = await supabase.from("product_equivalences").insert([
-      { product_id: productA, equivalent_id: productB, equivalence_type: equivType },
-      { product_id: productB, equivalent_id: productA, equivalence_type: equivType },
-    ]);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Équivalence ajoutée");
-    setProductA(""); setProductB(""); setEquivType("strict");
-    fetchData();
-  };
-
   const removeEquivalence = async (e: Equivalence) => {
     await supabase.from("product_equivalences").delete().or(
       `and(product_id.eq.${e.product_id},equivalent_id.eq.${e.equivalent_id}),and(product_id.eq.${e.equivalent_id},equivalent_id.eq.${e.product_id})`
@@ -214,40 +185,10 @@ export default function Equivalences() {
     fetchData();
   };
 
-  const getName = (id: string) => products.find(p => p.id === id);
-
-  // All equivalences list (deduplicated)
-  const seen = new Set<string>();
-  const uniqueEquiv = equivalences.filter(e => {
-    const key = [e.product_id, e.equivalent_id].sort().join("-");
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  const filteredEquiv = useMemo(() => {
-    return uniqueEquiv.filter(e => {
-      const a = getName(e.product_id);
-      const b = getName(e.equivalent_id);
-      if (supplierFilter !== "all") {
-        if (a?.supplier !== supplierFilter && b?.supplier !== supplierFilter) return false;
-      }
-      if (typeFilter !== "all" && e.equivalence_type !== typeFilter) return false;
-      if (searchEquiv) {
-        const q = searchEquiv.toLowerCase();
-        const match = [a?.reference, a?.name, a?.supplier, b?.reference, b?.name, b?.supplier]
-          .some(v => v?.toLowerCase().includes(q));
-        if (!match) return false;
-      }
-      return true;
-    });
-  }, [uniqueEquiv, supplierFilter, typeFilter, searchEquiv, products]);
-
   return (
     <div className="space-y-4 sm:space-y-6">
       <h1 className="text-xl sm:text-2xl font-bold">Équivalences produits</h1>
 
-      {/* Recherche produit */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
@@ -262,7 +203,6 @@ export default function Equivalences() {
 
           {selectedProductData && (
             <div className="mt-4 space-y-4">
-              {/* Fiche produit */}
               <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg border bg-muted/30">
                 <Badge variant="outline" className="font-mono">{selectedProductData.reference}</Badge>
                 <span className="font-medium">{selectedProductData.name}</span>
@@ -272,7 +212,6 @@ export default function Equivalences() {
                 <StockBadge stock={selectedProductData.stock_available} />
               </div>
 
-              {/* Équivalents groupés */}
               {hasAnyEquivalent ? (
                 <div className="space-y-3">
                   {EQUIV_TYPE_ORDER.map(type => {
@@ -302,101 +241,6 @@ export default function Equivalences() {
               ) : (
                 <p className="text-muted-foreground text-center py-4">Aucune équivalence pour ce produit</p>
               )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Ajouter une équivalence */}
-      <Card>
-        <CardHeader><CardTitle className="text-base sm:text-lg">Ajouter une équivalence</CardTitle></CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4">
-            <ProductCombobox products={products} value={productA} onChange={setProductA} label="Produit A" />
-            <ProductCombobox products={products} value={productB} onChange={setProductB} label="Produit B" />
-            <div className="w-full sm:w-[200px] shrink-0">
-              <Label>Type</Label>
-              <Select value={equivType} onValueChange={(v) => setEquivType(v as EquivType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {EQUIV_TYPE_ORDER.map(t => (
-                    <SelectItem key={t} value={t}>{EQUIV_TYPE_CONFIG[t].label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={addEquivalence} className="w-full sm:w-auto shrink-0">
-              <Plus className="h-4 w-4 mr-2" />Ajouter
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Liste existante */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Toutes les équivalences ({filteredEquiv.length})</CardTitle>
-          <div className="flex flex-col sm:flex-row gap-3 mt-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher..." value={searchEquiv} onChange={e => setSearchEquiv(e.target.value)} className="pl-10" />
-            </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les types</SelectItem>
-                {EQUIV_TYPE_ORDER.map(t => (
-                  <SelectItem key={t} value={t}>{EQUIV_TYPE_CONFIG[t].label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={supplierFilter} onValueChange={setSupplierFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Fournisseur" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les fournisseurs</SelectItem>
-                {suppliers.sort().map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {filteredEquiv.length === 0 ? (
-            <p className="text-muted-foreground text-center py-4">Aucune équivalence trouvée</p>
-          ) : (
-            <div className="space-y-2">
-              {filteredEquiv.map(e => {
-                const a = getName(e.product_id);
-                const b = getName(e.equivalent_id);
-                const config = EQUIV_TYPE_CONFIG[e.equivalence_type];
-                return (
-                  <div key={e.id} className="flex items-center justify-between p-3 rounded-lg border gap-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
-                      <Badge className={cn("shrink-0 text-[10px] w-fit", config.badgeClass)}>{config.label}</Badge>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant="outline" className="shrink-0">{a?.reference}</Badge>
-                        <span className="truncate text-sm">{a?.name}</span>
-                        {a?.supplier && <Badge variant="secondary" className="shrink-0 text-[10px]">{a.supplier}</Badge>}
-                      </div>
-                      <span className="text-muted-foreground hidden sm:inline">⟷</span>
-                      <span className="text-muted-foreground sm:hidden text-xs">↕</span>
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant="outline" className="shrink-0">{b?.reference}</Badge>
-                        <span className="truncate text-sm">{b?.name}</span>
-                        {b?.supplier && <Badge variant="secondary" className="shrink-0 text-[10px]">{b.supplier}</Badge>}
-                      </div>
-                    </div>
-                    <Button variant="ghost" size="icon" className="shrink-0" onClick={() => removeEquivalence(e)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                );
-              })}
             </div>
           )}
         </CardContent>
