@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { FileText, Square, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { savePendingRecording } from "@/lib/offlineDb";
+import { useScribe } from "@elevenlabs/react";
 
 interface VisitRecorderProps {
   open: boolean;
@@ -20,9 +20,28 @@ type Step = "ready" | "recording" | "processing" | "done";
 export default function VisitRecorder({ open, onOpenChange, visitId, clientName, visitDate, onComplete }: VisitRecorderProps) {
   const [step, setStep] = useState<Step>("ready");
   const [duration, setDuration] = useState(0);
+  const [liveText, setLiveText] = useState("");
+  const committedTextRef = useRef("");
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Offline fallback refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
+
+  const scribe = useScribe({
+    modelId: "scribe_v2_realtime",
+    commitStrategy: "vad",
+    onPartialTranscript: (data) => {
+      setLiveText(committedTextRef.current + (committedTextRef.current ? " " : "") + data.text);
+    },
+    onCommittedTranscript: (data) => {
+      committedTextRef.current = committedTextRef.current
+        ? committedTextRef.current + " " + data.text
+        : data.text;
+      setLiveText(committedTextRef.current);
+    },
+  });
 
   // Auto-close after done
   useEffect(() => {
@@ -33,102 +52,109 @@ export default function VisitRecorder({ open, onOpenChange, visitId, clientName,
   }, [step]);
 
   const startRecording = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
+    committedTextRef.current = "";
+    setLiveText("");
+    setDuration(0);
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.start(1000);
-      setStep("recording");
-      setDuration(0);
-      timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
-    } catch {
-      toast.error("Impossible d'accéder au micro.");
+    // Offline fallback
+    if (!navigator.onLine) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+        mediaRecorderRef.current = mediaRecorder;
+        chunksRef.current = [];
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+        mediaRecorder.start(1000);
+        setIsOfflineMode(true);
+        setStep("recording");
+        timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
+      } catch {
+        toast.error("Impossible d'accéder au micro.");
+      }
+      return;
     }
-  }, []);
 
-  const stopRecording = useCallback(async () => {
-    const mediaRecorder = mediaRecorderRef.current;
-    if (!mediaRecorder) return;
+    // Online: use realtime scribe
+    try {
+      setIsOfflineMode(false);
+
+      const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
+      if (error || !data?.token) {
+        toast.error("Impossible d'obtenir le token de transcription");
+        return;
+      }
+
+      await scribe.connect({
+        token: data.token,
+        microphone: {
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      });
+
+      setStep("recording");
+      timerRef.current = setInterval(() => setDuration((d) => d + 1), 1000);
+    } catch (e: any) {
+      console.error("Start error:", e);
+      toast.error("Erreur au démarrage de l'enregistrement");
+    }
+  }, [scribe]);
+
+  const stopAndProcess = useCallback(async () => {
     if (timerRef.current) clearInterval(timerRef.current);
 
-    return new Promise<Blob>((resolve) => {
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        mediaRecorder.stream.getTracks().forEach((t) => t.stop());
-        resolve(blob);
-      };
-      mediaRecorder.stop();
-    });
-  }, []);
+    // Offline mode: save to IndexedDB
+    if (isOfflineMode) {
+      setStep("processing");
+      const mediaRecorder = mediaRecorderRef.current;
+      if (!mediaRecorder) return;
 
-  const processAudio = async () => {
+      const audioBlob = await new Promise<Blob>((resolve) => {
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+          mediaRecorder.stream.getTracks().forEach((t) => t.stop());
+          resolve(blob);
+        };
+        mediaRecorder.stop();
+      });
+
+      await savePendingRecording({ visitId, clientName, visitDate, audioBlob });
+      setStep("done");
+      toast.success("Enregistrement sauvegardé hors ligne — synchronisation automatique au retour");
+      return;
+    }
+
+    // Online mode: disconnect scribe and process text
     setStep("processing");
+
     try {
-      const audioBlob = await stopRecording();
-      if (!audioBlob || audioBlob.size === 0) {
-        toast.error("Aucun audio enregistré");
+      scribe.disconnect();
+
+      // Wait a beat for final committed transcripts
+      await new Promise((r) => setTimeout(r, 500));
+
+      const fullText = committedTextRef.current.trim();
+      if (!fullText) {
+        toast.error("Aucune transcription détectée");
         setStep("ready");
         return;
       }
 
-      // If offline, save to IndexedDB for later sync
-      if (!navigator.onLine) {
-        await savePendingRecording({
-          visitId,
-          clientName,
-          visitDate,
-          audioBlob,
-        });
-        setStep("done");
-        toast.success("Enregistrement sauvegardé hors ligne — il sera synchronisé automatiquement");
-        return;
-      }
-
-      const fileName = `${visitId}/${Date.now()}.webm`;
-      const { error: uploadError } = await supabase.storage
-        .from("visit-recordings")
-        .upload(fileName, audioBlob, { contentType: "audio/webm" });
-
-      if (uploadError) console.error("Upload error:", uploadError);
-      const audioUrl = uploadError ? null : fileName;
-
-      const formData = new FormData();
-      formData.append("audio", audioBlob, "recording.webm");
-
-      const transcribeRes = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-transcribe`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: formData,
-        }
-      );
-
-      if (!transcribeRes.ok) {
-        const err = await transcribeRes.json().catch(() => ({}));
-        throw new Error(err.error || "Erreur de transcription");
-      }
-
-      const { text: transcribedText } = await transcribeRes.json();
-
+      // Generate summary
       const { data: summaryData } = await supabase.functions.invoke("visit-summary", {
-        body: { transcription: transcribedText, client_name: clientName, visit_date: visitDate },
+        body: { transcription: fullText, client_name: clientName, visit_date: visitDate },
       });
 
       const generatedSummary = summaryData?.summary || "";
 
+      // Update visit record
       await supabase
         .from("visits")
         .update({
-          transcription: transcribedText,
+          transcription: fullText,
           summary: generatedSummary,
-          audio_url: audioUrl,
           report: generatedSummary || undefined,
         })
         .eq("id", visitId);
@@ -140,16 +166,22 @@ export default function VisitRecorder({ open, onOpenChange, visitId, clientName,
       toast.error(e.message || "Erreur lors du traitement");
       setStep("ready");
     }
-  };
+  }, [isOfflineMode, scribe, visitId, clientName, visitDate]);
 
   const handleClose = () => {
     if (step === "recording") {
-      mediaRecorderRef.current?.stop();
-      mediaRecorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+      if (isOfflineMode) {
+        mediaRecorderRef.current?.stop();
+        mediaRecorderRef.current?.stream.getTracks().forEach((t) => t.stop());
+      } else {
+        scribe.disconnect();
+      }
       if (timerRef.current) clearInterval(timerRef.current);
     }
     setStep("ready");
     setDuration(0);
+    setLiveText("");
+    committedTextRef.current = "";
     onOpenChange(false);
     onComplete();
   };
@@ -160,7 +192,7 @@ export default function VisitRecorder({ open, onOpenChange, visitId, clientName,
   if (!open) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg border bg-card shadow-lg">
+    <div className="fixed bottom-4 right-4 z-50 w-80 rounded-lg border bg-card shadow-lg">
       <div className="flex items-center justify-between px-3 py-2 border-b">
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
           <FileText className="h-3.5 w-3.5" />
@@ -172,7 +204,9 @@ export default function VisitRecorder({ open, onOpenChange, visitId, clientName,
       <div className="p-3">
         {step === "ready" && (
           <div className="flex flex-col items-center gap-2 py-2">
-            <p className="text-xs text-muted-foreground text-center">Prendre des notes vocales</p>
+            <p className="text-xs text-muted-foreground text-center">
+              {navigator.onLine ? "Transcription en temps réel" : "Mode hors ligne"}
+            </p>
             <Button variant="outline" size="sm" onClick={startRecording} className="gap-1.5 text-xs">
               <div className="h-2 w-2 rounded-full bg-muted-foreground" />
               Démarrer
@@ -181,14 +215,21 @@ export default function VisitRecorder({ open, onOpenChange, visitId, clientName,
         )}
 
         {step === "recording" && (
-          <div className="flex items-center justify-between py-2">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-              <span className="text-sm font-mono">{formatDuration(duration)}</span>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                <span className="text-sm font-mono">{formatDuration(duration)}</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={stopAndProcess} className="gap-1 text-xs">
+                <Square className="h-3 w-3" /> Stop
+              </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={processAudio} className="gap-1 text-xs">
-              <Square className="h-3 w-3" /> Stop
-            </Button>
+            {!isOfflineMode && liveText && (
+              <div className="max-h-32 overflow-y-auto rounded bg-muted/50 p-2">
+                <p className="text-xs text-muted-foreground leading-relaxed">{liveText}</p>
+              </div>
+            )}
           </div>
         )}
 
