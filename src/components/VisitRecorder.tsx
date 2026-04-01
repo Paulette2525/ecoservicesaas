@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Square, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { savePendingRecording } from "@/lib/offlineDb";
-import { useScribe } from "@elevenlabs/react";
+import { useScribe, CommitStrategy } from "@elevenlabs/react";
 
 interface VisitRecorderProps {
   open: boolean;
