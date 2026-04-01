@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getPendingRecordings, updateRecordingStatus, deletePendingRecording, type PendingRecording } from "@/lib/offlineDb";
+import { getPendingRecordings, updateRecordingStatus, updatePendingRecording, deletePendingRecording, type PendingRecording } from "@/lib/offlineDb";
 import { useOnlineStatus } from "./useOnlineStatus";
 import { toast } from "sonner";
 
@@ -100,15 +100,29 @@ export function useOfflineSync() {
   const syncOne = async (rec: PendingRecording) => {
     await updateRecordingStatus(rec.id, "syncing");
 
-    // 1. Upload audio
-    const fileName = `${rec.visitId}/${Date.now()}.webm`;
-    const { error: uploadError } = await supabase.storage
-      .from("visit-recordings")
-      .upload(fileName, rec.audioBlob, { contentType: "audio/webm" });
+    // 1. Upload audio only once, then persist the uploaded path for retries
+    let fileName = rec.uploadedPath;
+    if (!fileName) {
+      fileName = `${rec.visitId}/${Date.now()}.webm`;
+      const { error: uploadError } = await supabase.storage
+        .from("visit-recordings")
+        .upload(fileName, rec.audioBlob, { contentType: "audio/webm" });
 
-    if (uploadError) {
-      console.error("Sync upload error:", uploadError);
-      throw new Error("Impossible d'envoyer l'audio pour la synchronisation.");
+      if (uploadError) {
+        console.error("Sync upload error:", uploadError);
+        throw new Error("Impossible d'envoyer l'audio pour la synchronisation.");
+      }
+
+      await updatePendingRecording(rec.id, { uploadedPath: fileName, status: "syncing" });
+
+      const { error: audioUrlError } = await supabase
+        .from("visits")
+        .update({ audio_url: fileName })
+        .eq("id", rec.visitId);
+
+      if (audioUrlError) {
+        throw new Error(audioUrlError.message || "Impossible d'associer l'audio à la visite.");
+      }
     }
 
     // 2. Transcribe with chunking + retry
