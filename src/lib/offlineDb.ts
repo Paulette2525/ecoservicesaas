@@ -9,6 +9,7 @@ export interface PendingRecording {
   clientName: string;
   visitDate: string;
   audioBlob: Blob;
+  uploadedPath?: string;
   createdAt: string;
   status: "pending" | "syncing";
 }
@@ -72,6 +73,25 @@ export async function updateRecordingStatus(
     getReq.onsuccess = () => {
       if (getReq.result) {
         store.put({ ...getReq.result, status });
+      }
+    };
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+export async function updatePendingRecording(
+  id: string,
+  patch: Partial<Omit<PendingRecording, "id">>
+): Promise<void> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      if (getReq.result) {
+        store.put({ ...getReq.result, ...patch, id });
       }
     };
     tx.oncomplete = () => { db.close(); resolve(); };
