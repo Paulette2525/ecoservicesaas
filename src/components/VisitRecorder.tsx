@@ -33,7 +33,7 @@ export default function VisitRecorder({ open, onOpenChange, visitId, clientName,
 
   const scribe = useScribe({
     modelId: "scribe_v2_realtime",
-    commitStrategy: "vad",
+    commitStrategy: CommitStrategy.VAD,
     onPartialTranscript: (data) => {
       setLiveText(committedTextRef.current + (committedTextRef.current ? " " : "") + data.text);
     },
