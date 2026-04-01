@@ -4,22 +4,88 @@ import { getPendingRecordings, updateRecordingStatus, deletePendingRecording, ty
 import { useOnlineStatus } from "./useOnlineStatus";
 import { toast } from "sonner";
 
+const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB
+const CHUNK_THRESHOLD = 5 * 1024 * 1024; // 5 MB
+
+type SyncError = { message: string; isProviderError: boolean };
+
+function parseSyncErrorResponse(payload: any): SyncError {
+  const isProviderError = /payment_issue|insufficient_credits|rate_limited/i.test(
+    `${payload?.provider_status} ${payload?.details} ${payload?.error}`
+  );
+  const message =
+    payload?.provider_status === "payment_issue"
+      ? "Service de transcription indisponible (problème de paiement du fournisseur)."
+      : payload?.provider_status === "rate_limited"
+        ? "Trop de requêtes vers le service de transcription, réessai automatique."
+        : payload?.details || payload?.error || payload?.message || "Erreur de transcription";
+  return { message, isProviderError };
+}
+
+async function transcribeChunk(blob: Blob): Promise<string> {
+  const formData = new FormData();
+  formData.append("audio", blob, "recording.webm");
+
+  const res = await fetch(
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-transcribe`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      body: formData,
+    }
+  );
+
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null);
+    const err = parseSyncErrorResponse(payload);
+    const e = new Error(err.message) as any;
+    e.isProviderError = err.isProviderError;
+    throw e;
+  }
+
+  const { text } = await res.json();
+  return text || "";
+}
+
+async function transcribeWithChunking(audioBlob: Blob): Promise<string> {
+  if (audioBlob.size <= CHUNK_THRESHOLD) {
+    return transcribeChunk(audioBlob);
+  }
+
+  // Split into chunks
+  const chunks: Blob[] = [];
+  let offset = 0;
+  while (offset < audioBlob.size) {
+    chunks.push(audioBlob.slice(offset, offset + CHUNK_SIZE, audioBlob.type));
+    offset += CHUNK_SIZE;
+  }
+
+  console.log(`Audio ${(audioBlob.size / 1024 / 1024).toFixed(1)} Mo → ${chunks.length} chunks`);
+
+  const texts: string[] = [];
+  for (const chunk of chunks) {
+    texts.push(await transcribeChunk(chunk));
+  }
+  return texts.filter(Boolean).join(" ");
+}
+
+async function withRetry<T>(fn: () => Promise<T>, retries = 1, delayMs = 3000): Promise<T> {
+  try {
+    return await fn();
+  } catch (e: any) {
+    if (e.isProviderError || retries <= 0) throw e;
+    console.log(`Retry in ${delayMs}ms...`);
+    await new Promise((r) => setTimeout(r, delayMs));
+    return withRetry(fn, retries - 1, delayMs * 2);
+  }
+}
+
 export function useOfflineSync() {
   const { isOnline } = useOnlineStatus();
   const [pendingCount, setPendingCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingItems, setPendingItems] = useState<PendingRecording[]>([]);
   const syncingRef = useRef(false);
-
-  const parseSyncError = async (response: Response) => {
-    const payload = await response.json().catch(() => null);
-
-    if (payload?.provider_status === "payment_issue") {
-      return "Le service de transcription est indisponible pour le moment (problème de paiement du fournisseur).";
-    }
-
-    return payload?.error || payload?.message || payload?.details || "Erreur de transcription";
-  };
 
   const refreshPending = useCallback(async () => {
     try {
@@ -45,26 +111,8 @@ export function useOfflineSync() {
       throw new Error("Impossible d'envoyer l'audio pour la synchronisation.");
     }
 
-    const audioUrl = uploadError ? null : fileName;
-
-    // 2. Transcribe
-    const formData = new FormData();
-    formData.append("audio", rec.audioBlob, "recording.webm");
-
-    const transcribeRes = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-transcribe`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: formData,
-      }
-    );
-
-    if (!transcribeRes.ok) {
-      throw new Error(await parseSyncError(transcribeRes));
-    }
-
-    const { text: transcribedText } = await transcribeRes.json();
+    // 2. Transcribe with chunking + retry
+    const transcribedText = await withRetry(() => transcribeWithChunking(rec.audioBlob));
 
     // 3. Summary
     const { data: summaryData, error: summaryError } = await supabase.functions.invoke("visit-summary", {
@@ -83,7 +131,7 @@ export function useOfflineSync() {
       .update({
         transcription: transcribedText,
         summary: generatedSummary,
-        audio_url: audioUrl,
+        audio_url: fileName,
         report: generatedSummary || undefined,
       })
       .eq("id", rec.visitId);
@@ -114,7 +162,7 @@ export function useOfflineSync() {
           await updateRecordingStatus(rec.id, "pending");
           toast.error(`Synchronisation impossible pour "${rec.clientName}" : ${message}`);
 
-          if (/paiement du fournisseur|crédits|payment_issue/i.test(message)) {
+          if (e.isProviderError || /paiement du fournisseur|crédits|payment_issue/i.test(message)) {
             break;
           }
         }
