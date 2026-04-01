@@ -303,6 +303,8 @@ export type Database = {
           report: string | null
           status: Database["public"]["Enums"]["visit_status"]
           summary: string | null
+          sync_error: string | null
+          sync_status: string | null
           transcription: string | null
           updated_at: string
           visit_date: string
@@ -319,6 +321,8 @@ export type Database = {
           report?: string | null
           status?: Database["public"]["Enums"]["visit_status"]
           summary?: string | null
+          sync_error?: string | null
+          sync_status?: string | null
           transcription?: string | null
           updated_at?: string
           visit_date?: string
@@ -335,6 +339,8 @@ export type Database = {
           report?: string | null
           status?: Database["public"]["Enums"]["visit_status"]
           summary?: string | null
+          sync_error?: string | null
+          sync_status?: string | null
           transcription?: string | null
           updated_at?: string
           visit_date?: string

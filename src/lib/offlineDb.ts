@@ -17,6 +17,16 @@ export interface PendingRecording {
 const DB_NAME = "visit-offline-db";
 const STORE_NAME = "pending-recordings";
 const DB_VERSION = 1;
+const CHANGE_EVENT = "offline-recordings-changed";
+
+function notifyChange() {
+  window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+export function onRecordingsChange(callback: () => void): () => void {
+  window.addEventListener(CHANGE_EVENT, callback);
+  return () => window.removeEventListener(CHANGE_EVENT, callback);
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -46,7 +56,7 @@ export async function savePendingRecording(
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(entry);
-    tx.oncomplete = () => { db.close(); resolve(id); };
+    tx.oncomplete = () => { db.close(); notifyChange(); resolve(id); };
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
@@ -75,7 +85,7 @@ export async function updateRecordingStatus(
         store.put({ ...getReq.result, status });
       }
     };
-    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.oncomplete = () => { db.close(); notifyChange(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
@@ -94,7 +104,7 @@ export async function updatePendingRecording(
         store.put({ ...getReq.result, ...patch, id });
       }
     };
-    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.oncomplete = () => { db.close(); notifyChange(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
@@ -104,7 +114,7 @@ export async function deletePendingRecording(id: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).delete(id);
-    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.oncomplete = () => { db.close(); notifyChange(); resolve(); };
     tx.onerror = () => { db.close(); reject(tx.error); };
   });
 }
