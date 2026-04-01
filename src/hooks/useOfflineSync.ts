@@ -32,18 +32,25 @@ async function transcribeChunk(blob: Blob): Promise<string> {
   const formData = new FormData();
   formData.append("audio", blob, "recording.webm");
 
-  const { data, error } = await supabase.functions.invoke("elevenlabs-transcribe", {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  const res = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-transcribe`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${supabaseKey}` },
     body: formData,
   });
 
-  if (error) {
-    const parsed = parseSyncErrorResponse(data);
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null);
+    const parsed = parseSyncErrorResponse(payload);
     const e = new Error(parsed.message) as any;
     e.isProviderError = parsed.isProviderError;
     throw e;
   }
 
-  return data?.text || "";
+  const { text } = await res.json();
+  return text || "";
 }
 
 async function transcribeWithChunking(audioBlob: Blob): Promise<string> {
