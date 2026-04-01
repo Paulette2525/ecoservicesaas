@@ -45,10 +45,44 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("ElevenLabs API error:", response.status, errorText);
-      return new Response(JSON.stringify({ error: "Transcription failed", details: errorText }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+
+      // Parse ElevenLabs error to extract provider_status
+      let provider_status: string | undefined;
+      let detail_message = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson?.detail?.status) {
+          provider_status = errorJson.detail.status;
+        }
+        if (errorJson?.detail?.message) {
+          detail_message = errorJson.detail.message;
+        } else if (typeof errorJson?.detail === "string") {
+          detail_message = errorJson.detail;
+        }
+      } catch {
+        // errorText is not JSON, use as-is
+      }
+
+      // Map known statuses
+      if (!provider_status) {
+        if (response.status === 401 || response.status === 403) {
+          provider_status = "payment_issue";
+        } else if (response.status === 429) {
+          provider_status = "rate_limited";
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          error: "Transcription failed",
+          details: detail_message,
+          provider_status: provider_status || "unknown",
+        }),
+        {
+          status: response.status >= 400 && response.status < 500 ? response.status : 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     const transcription = await response.json();
